@@ -2,4 +2,12 @@
 
 This is a quick demo of bleve search on a directory of Markdown files.  Next steps:
 
-- Build a terminal UI that works for interactive mode. [gowid](https://github.com/gcla/gowid) seems most promising, but FZF is written in go and I could pull its UI code directly if desired.
+- Integrate with bleve
+- Preview window
+- Write a better command line interface
+- Styling
+
+## Known issues
+
+- Flicker? Caused by [rivo/tview#314](https://github.com/rivo/tview/issues/314).
+
