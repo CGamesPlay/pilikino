@@ -26,11 +26,12 @@ type searchRequest struct {
 }
 
 type interactiveState struct {
-	app        *tview.Application
-	input      *tview.InputField
-	results    *tview.List
-	searchFunc SearchFunc
-	err        error
+	app         *tview.Application
+	input       *tview.InputField
+	resultsView *tview.List
+	items       []ListItem
+	searchFunc  SearchFunc
+	err         error
 	// nextRequest is a channel which holds the next query that should be
 	// evaluated by the searcher.
 	nextRequest chan searchRequest
@@ -44,7 +45,7 @@ type threadData struct {
 
 // RunInteractive handles the full interactive mode lifecycle, returning the
 // selected item.
-func RunInteractive(searchFunc SearchFunc) (string, error) {
+func RunInteractive(searchFunc SearchFunc) (ListItem, error) {
 	is := interactiveState{
 		searchFunc:  searchFunc,
 		nextRequest: make(chan searchRequest, 1),
@@ -80,15 +81,15 @@ func RunInteractive(searchFunc SearchFunc) (string, error) {
 	is.input.SetFieldBackgroundColor(-1)
 	is.input.Box.SetBackgroundColor(-1)
 
-	is.results = tview.NewList().
+	is.resultsView = tview.NewList().
 		ShowSecondaryText(false).
 		SetWrapAround(false)
-	is.results.Box.SetBackgroundColor(-1)
-	resultsViewInput := is.results.InputHandler()
+	is.resultsView.Box.SetBackgroundColor(-1)
+	resultsViewInput := is.resultsView.InputHandler()
 
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(is.results, 0, 1, false).
+		AddItem(is.resultsView, 0, 1, false).
 		AddItem(is.input, 1, 0, true)
 
 	is.input.SetDoneFunc(func(key tcell.Key) {
@@ -116,11 +117,13 @@ func RunInteractive(searchFunc SearchFunc) (string, error) {
 	}
 	close(is.nextRequest)
 	if is.err != nil {
-		return "", is.err
+		return ListItem{}, is.err
 	}
-	item := is.results.GetCurrentItem()
-	text, _ := is.results.GetItemText(item)
-	return text, nil
+	idx := is.resultsView.GetCurrentItem()
+	if idx >= len(is.items) {
+		return ListItem{}, nil
+	}
+	return is.items[idx], nil
 }
 
 func (is *interactiveState) update(query string) {
@@ -129,18 +132,19 @@ func (is *interactiveState) update(query string) {
 		// drop the old unstarted request
 	default:
 	}
-	_, _, _, numResults := is.results.GetInnerRect()
+	_, _, _, numResults := is.resultsView.GetInnerRect()
 	is.nextRequest <- searchRequest{query: query, numResults: numResults}
 }
 
 func (is *interactiveState) setItems(items []ListItem) {
 	is.app.QueueUpdateDraw(func() {
-		pos := is.results.GetCurrentItem()
-		is.results.Clear()
+		is.items = items
+		pos := is.resultsView.GetCurrentItem()
+		is.resultsView.Clear()
 		for _, i := range items {
-			is.results.AddItem(tview.Escape(i.Label), "", 0, nil)
+			is.resultsView.AddItem(tview.Escape(i.Label), "", 0, nil)
 		}
-		is.results.SetCurrentItem(pos)
+		is.resultsView.SetCurrentItem(pos)
 	})
 }
 
