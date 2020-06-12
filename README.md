@@ -2,10 +2,10 @@
 
 This is a quick demo of bleve search on a directory of Markdown files.  Next steps:
 
-- Integrate with bleve
-- Preview window
+- Vim plugin
 - Write a better command line interface
 - Styling
+- Indexing in background
 
 ## Known issues
 

@@ -3,11 +3,46 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"unicode"
 
 	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
+	"github.com/rivo/tview"
 )
+
+var jankyHighlighter = strings.NewReplacer(
+	"<mark>", "[red]",
+	"</mark>", "[-]",
+)
+
+type bleveResult struct {
+	hit *search.DocumentMatch
+}
+
+func (br *bleveResult) Label() string {
+	label := br.hit.ID
+	label += fmt.Sprintf(":%0.4f", br.hit.Score)
+	return label
+}
+
+func (br *bleveResult) Preview(preview *tview.TextView) {
+	content := strings.Builder{}
+	if fragments, ok := br.hit.Fragments["content"]; ok {
+		for _, fragment := range fragments {
+			content.WriteString(jankyHighlighter.Replace(fragment))
+			content.WriteString("\n---\n")
+		}
+	} else if docContent, ok := br.hit.Fields["content"]; ok {
+		content.WriteString(docContent.(string))
+	} else {
+		for field, value := range br.hit.Fields {
+			content.WriteString(fmt.Sprintf("%s:%v\n", field, value))
+		}
+	}
+	preview.SetText(content.String()).SetWordWrap(true).SetDynamicColors(true)
+}
 
 func parseQuery(queryString string) (query.Query, error) {
 	if len(queryString) == 0 {
@@ -24,8 +59,8 @@ func parseQuery(queryString string) (query.Query, error) {
 	return parsed, nil
 }
 
-func searcher(index bleve.Index) func(query string, num int) ([]ListItem, error) {
-	return func(queryString string, numResults int) ([]ListItem, error) {
+func searcher(index bleve.Index) func(query string, num int) (SearchResults, error) {
+	return func(queryString string, numResults int) (SearchResults, error) {
 		query, err := parseQuery(queryString)
 		if err != nil {
 			return nil, err
@@ -36,27 +71,16 @@ func searcher(index bleve.Index) func(query string, num int) ([]ListItem, error)
 		if err != nil {
 			return nil, err
 		}
-		results := make([]ListItem, len(res.Hits))
+		results := make(SearchResults, len(res.Hits))
 		for i, hit := range res.Hits {
-			label := hit.ID
-			label += fmt.Sprintf(":%0.4f", hit.Score)
-			/*if fragments, ok := hit.Fragments["content"]; ok {
-				for _, fragment := range fragments {
-					label += strings.Replace(fragment, "\n", " ", -1)
-				}
-			}*/
-			results[i] = ListItem{
-				ID:    hit.ID,
-				Label: label,
-				Score: float32(hit.Score),
-			}
+			results[i] = &bleveResult{hit: hit}
 		}
 		return results, nil
 	}
 }
 
 func main() {
-	var result ListItem
+	var result SearchResult
 
 	index, err := createIndex()
 	if err != nil {
@@ -66,14 +90,18 @@ func main() {
 		goto finish
 	}
 
-	result, err = RunInteractive(searcher(index))
+	result, err = RunInteractive(searcher(index), true)
 	if err != nil {
 		goto finish
+	} else if result != nil {
+		fmt.Printf("%v\n", result.(*bleveResult).hit.ID)
 	}
-	fmt.Printf("%v\n", result.ID)
 
 finish:
-	if err != nil {
+	if err == ErrSearchAborted {
+		// 130 is what fzf uses, so copying.
+		os.Exit(130)
+	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
