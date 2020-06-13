@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/CGamesPlay/pilikino/pkg/tui"
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/query"
@@ -59,8 +60,8 @@ func parseQuery(queryString string) (query.Query, error) {
 	return parsed, nil
 }
 
-func searcher(index bleve.Index) func(query string, num int) (SearchResults, error) {
-	return func(queryString string, numResults int) (SearchResults, error) {
+func searcher(index bleve.Index) func(query string, num int) (tui.SearchResults, error) {
+	return func(queryString string, numResults int) (tui.SearchResults, error) {
 		query, err := parseQuery(queryString)
 		if err != nil {
 			return nil, err
@@ -71,7 +72,7 @@ func searcher(index bleve.Index) func(query string, num int) (SearchResults, err
 		if err != nil {
 			return nil, err
 		}
-		results := make(SearchResults, len(res.Hits))
+		results := make(tui.SearchResults, len(res.Hits))
 		for i, hit := range res.Hits {
 			results[i] = &bleveResult{hit: hit}
 		}
@@ -80,7 +81,7 @@ func searcher(index bleve.Index) func(query string, num int) (SearchResults, err
 }
 
 func main() {
-	var result SearchResult
+	var result tui.SearchResult
 
 	index, err := createIndex()
 	if err != nil {
@@ -90,7 +91,7 @@ func main() {
 		goto finish
 	}
 
-	result, err = RunInteractive(searcher(index), true)
+	result, err = tui.RunInteractive(searcher(index), true)
 	if err != nil {
 		goto finish
 	} else if result != nil {
@@ -99,7 +100,7 @@ func main() {
 
 finish:
 	// These exit codes are similar to fzf's.
-	if err == ErrSearchAborted {
+	if err == tui.ErrSearchAborted {
 		os.Exit(130)
 	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
