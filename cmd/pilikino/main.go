@@ -98,11 +98,14 @@ func main() {
 	}
 
 finish:
+	// These exit codes are similar to fzf's.
 	if err == ErrSearchAborted {
-		// 130 is what fzf uses, so copying.
 		os.Exit(130)
 	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(2)
+	} else if result == nil {
+		// User selected no match
 		os.Exit(1)
 	}
 }
