@@ -13,7 +13,7 @@ import (
 )
 
 var jankyHighlighter = strings.NewReplacer(
-	"<mark>", "[red]",
+	"<mark>", "[#87af87]",
 	"</mark>", "[-]",
 )
 
@@ -31,7 +31,7 @@ func (br *bleveResult) Preview(preview *tview.TextView) {
 	content := strings.Builder{}
 	if fragments, ok := br.hit.Fragments["content"]; ok {
 		for _, fragment := range fragments {
-			content.WriteString(jankyHighlighter.Replace(fragment))
+			content.WriteString(jankyHighlighter.Replace(tview.Escape(fragment)))
 			content.WriteString("\n---\n")
 		}
 	} else if docContent, ok := br.hit.Fields["content"]; ok {

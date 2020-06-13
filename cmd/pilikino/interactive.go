@@ -92,30 +92,37 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 		isFirstDraw = false
 	})
 
-	is.input = tview.NewInputField()
-	is.input.SetFieldBackgroundColor(-1)
-	is.input.SetBackgroundColor(-1)
+	is.input = tview.NewInputField().
+		SetLabel("> ").
+		SetLabelColor(tcell.Color110).
+		SetFieldBackgroundColor(tcell.ColorDefault).
+		SetFieldTextColor(tcell.ColorDefault)
+	is.input.SetBackgroundColor(tcell.ColorDefault)
 
 	is.resultsView = tview.NewList().
 		ShowSecondaryText(false).
-		SetWrapAround(false)
-	is.resultsView.Box.SetBackgroundColor(-1)
+		SetWrapAround(false).
+		SetMainTextColor(tcell.ColorDefault).
+		SetSelectedTextColor(tcell.Color254).
+		SetSelectedBackgroundColor(tcell.Color236)
+	is.resultsView.SetBackgroundColor(tcell.ColorDefault)
 	resultsViewInput := is.resultsView.InputHandler()
 
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(is.resultsView, 0, 1, false).
-		AddItem(is.input, 1, 0, true)
+		AddItem(is.input, 1, 0, true).
+		AddItem(is.resultsView, 0, 1, false)
 
 	if showPreview {
 		is.preview = tview.NewTextView().
+			SetTextColor(tcell.ColorDefault).
 			SetChangedFunc(func() {
 				is.app.Draw()
 			})
 		is.preview.
-			SetBackgroundColor(-1).
+			SetBackgroundColor(tcell.ColorDefault).
 			SetBorder(true).
-			SetBorderColor(tcell.ColorBlack)
+			SetBorderColor(tcell.ColorDefault)
 		flex = tview.NewFlex().
 			AddItem(flex, 0, 1, true).
 			AddItem(is.preview, 0, 1, false)
