@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
@@ -23,26 +24,53 @@ type Previewable interface {
 	Preview(target *tview.TextView)
 }
 
-// SearchResults is an array of SearchResult.
-type SearchResults []SearchResult
-
 // SearchFunc is implemented by the caller to implement searching. The query is
 // the content of the search box, and the function should return the first num
-// results associated with the query, or an error.
-type SearchFunc func(query string, num int) (SearchResults, error)
+// results associated with the query, or an error. This function will be called
+// from a goroutine, but will never be called concurrently with itself.
+type SearchFunc func(query string, num int) ([]SearchResult, error)
 
 type searchRequest struct {
 	query      string
 	numResults int
 }
 
+// Tui is the interface for controlling the interactive search. This package
+// does not have any specific knowledge of pilikino, it just presents a generic
+// live terminal search interface. The public members of this struct may be
+// not be modified while an invocation of Run is in progress.
+type Tui struct {
+	// Set to 1 whenever Run is executing, and 0 otherwise.
+	locked int32
+	// Wraps a *interactiveState
+	state atomic.Value
+	// SearchFunc is the SearchFunc used by the next invocation of Run.
+	SearchFunc SearchFunc
+	// ShowPreview controls whether a preview window will be shown on the next
+	// invocation of Run.
+	ShowPreview bool
+	// ExpectedKeys is the array of keys which will be accepted by the UI. The
+	// default value of this field contains KeyEnter.
+	ExpectedKeys []Key
+}
+
+// InteractiveResults holds the results of the interactive mode search.
+type InteractiveResults struct {
+	// Results holds all of the results selected by the user
+	Results []SearchResult
+	// Action holds the index of the key in ExpectedKeys that the user pressed
+	// to finalize the search.
+	Action int
+}
+
+// This struct holds all values modified by an interactive mode search. It's
+// just used to isolate the variables and make cleanup simple.
 type interactiveState struct {
 	app         *tview.Application
 	input       *tview.InputField
 	resultsView *tview.List
 	preview     *tview.TextView
-	items       SearchResults
-	searchFunc  SearchFunc
+	items       []SearchResult
 	err         error
 	// nextRequest is a channel which holds the next query that should be
 	// evaluated by the searcher.
@@ -52,17 +80,48 @@ type interactiveState struct {
 type searcherThread struct {
 	nextRequest   chan searchRequest
 	handleError   func(err error)
-	handleResults func(items SearchResults)
+	handleResults func(items []SearchResult)
 }
 
-// RunInteractive handles the full interactive mode lifecycle, returning the
-// selected item.
-//
-// `searchFunc` is called from a separate goroutine. It will never be called
-// concurrently with itself.
-func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, error) {
-	is := interactiveState{
-		searchFunc:  searchFunc,
+// NewTui creates a new interface for performing an interactive search.
+func NewTui(searchFunc SearchFunc, showPreview bool) *Tui {
+	return &Tui{
+		SearchFunc:   searchFunc,
+		ShowPreview:  showPreview,
+		ExpectedKeys: []Key{KeyEnter},
+	}
+}
+
+// Stop cancels an in-progress interactive search, causing Run to return.
+func (tui *Tui) Stop() {
+	val := tui.state.Load()
+	if val != nil {
+		val.(*interactiveState).app.Stop()
+	}
+}
+
+// Refresh causes an in-progress search to immediately refresh the currently
+// displayed results. Use if the underlying results may have changed and this
+// should be reflected in the UI.
+func (tui *Tui) Refresh() {
+	val := tui.state.Load()
+	if val != nil {
+		is := val.(*interactiveState)
+		is.app.QueueUpdateDraw(func() {
+			is.update(is.input.GetText())
+		})
+	}
+}
+
+// Run performs an interactive search, returning the selected item.
+func (tui *Tui) Run() (*InteractiveResults, error) {
+	if ok := atomic.CompareAndSwapInt32(&tui.locked, 0, 1); !ok {
+		return nil, errors.New("attempt to perform interactive search concurrently")
+	}
+	defer func() {
+		atomic.StoreInt32(&tui.locked, 0)
+	}()
+	is := &interactiveState{
 		nextRequest: make(chan searchRequest, 1),
 	}
 	st := searcherThread{
@@ -73,7 +132,10 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 		},
 		handleResults: is.setItems,
 	}
-	go runSearcher(st, searchFunc)
+	go runSearcher(st, tui.SearchFunc)
+
+	var initialQuery string
+	var results = InteractiveResults{Action: -1}
 
 	is.app = tview.NewApplication()
 	is.app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
@@ -87,13 +149,14 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 		if isFirstDraw {
 			// We have to do this after the first draw of the application to
 			// know how many screen lines are available for results.
-			is.update("")
+			is.update(initialQuery)
 		}
 		isFirstDraw = false
 	})
 
 	is.input = tview.NewInputField().
 		SetLabel("> ").
+		SetText(initialQuery).
 		SetLabelColor(tcell.Color110).
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetFieldTextColor(tcell.ColorDefault)
@@ -113,7 +176,7 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 		AddItem(is.input, 1, 0, true).
 		AddItem(is.resultsView, 0, 1, false)
 
-	if showPreview {
+	if tui.ShowPreview {
 		is.preview = tview.NewTextView().
 			SetTextColor(tcell.ColorDefault).
 			SetChangedFunc(func() {
@@ -128,11 +191,15 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 			AddItem(is.preview, 0, 1, false)
 	}
 
-	is.input.SetDoneFunc(func(key tcell.Key) {
-		is.err = ErrSearchAborted
-		is.app.Stop()
-	})
 	is.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		for i, exKey := range tui.ExpectedKeys {
+			ex := (*tcell.EventKey)(exKey)
+			if ex.Key() == event.Key() && ex.Modifiers() == event.Modifiers() && ex.Rune() == event.Rune() {
+				results.Action = i
+				is.app.Stop()
+				return nil
+			}
+		}
 		switch key := event.Key(); key {
 		case tcell.KeyDown, tcell.KeyUp:
 			if resultsViewInput != nil {
@@ -141,7 +208,7 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 				})
 			}
 			return nil
-		case tcell.KeyEnter:
+		case tcell.KeyEscape:
 			is.app.Stop()
 			return nil
 		}
@@ -152,7 +219,7 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 	})
 
 	is.resultsView.SetChangedFunc(func(idx int, _, _ string, _ rune) {
-		if !showPreview {
+		if !tui.ShowPreview {
 			return
 		}
 		is.preview.Clear()
@@ -163,18 +230,26 @@ func RunInteractive(searchFunc SearchFunc, showPreview bool) (SearchResult, erro
 	})
 
 	is.app.SetRoot(flex, true).SetFocus(flex)
+
+	tui.state.Store(is)
+	defer func() {
+		tui.state.Store((*interactiveState)(nil))
+	}()
+
 	if err := is.app.Run(); err != nil {
 		is.err = err
 	}
 	close(is.nextRequest)
 	if is.err != nil {
 		return nil, is.err
+	} else if results.Action == -1 {
+		return nil, ErrSearchAborted
 	}
 	idx := is.resultsView.GetCurrentItem()
-	if idx >= len(is.items) {
-		return nil, nil
+	if idx < len(is.items) {
+		results.Results = []SearchResult{is.items[idx]}
 	}
-	return is.items[idx], nil
+	return &results, nil
 }
 
 func (is *interactiveState) update(query string) {
@@ -187,7 +262,7 @@ func (is *interactiveState) update(query string) {
 	is.nextRequest <- searchRequest{query: query, numResults: numResults}
 }
 
-func (is *interactiveState) setItems(items SearchResults) {
+func (is *interactiveState) setItems(items []SearchResult) {
 	is.app.QueueUpdateDraw(func() {
 		is.items = items
 		pos := is.resultsView.GetCurrentItem()

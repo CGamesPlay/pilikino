@@ -13,36 +13,67 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var searchKeys []string
+
 func init() {
+	searchCmd.Flags().StringSliceVar(&searchKeys, "expect", []string{}, "list of keys to accept a result")
 	rootCmd.AddCommand(searchCmd)
 }
 
 var searchCmd = &cobra.Command{
 	Use:   "search",
 	Short: "Interactive search for notes",
-	Long:  `Opens a terminal UI featuring an interactive query and displays matching notes as you type.`,
+	Long: `Opens a terminal UI featuring an interactive query and displays matching notes as you type.
+
+Using the --expect flag, you can build integrations with other commands. If this option is set, the first line of output for a successful search will be the name of the key that was typed to accept the search. Example key names: f1, ctrl-v, enter, alt-shift-s. Note that enter will always accept the search, but will not be printed unless --expect is specified. You can use --expect=enter to make this explicit.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var result tui.SearchResult
-		index, err := buildIndex()
-		if err != nil {
-			goto finish
+		var (
+			index  *pilikino.Index
+			result *tui.InteractiveResults
+			t      *tui.Tui
+			err    error
+		)
+
+		expectedKeys := make([]tui.Key, len(searchKeys)+1)
+		for i, name := range searchKeys {
+			var key tui.Key
+			key, err = tui.ParseKey(name)
+			if err != nil {
+				goto fail
+			}
+			expectedKeys[i] = key
+		}
+		expectedKeys[len(searchKeys)] = tui.KeyEnter
+
+		if index, err = buildIndex(); err != nil {
+			goto fail
 		}
 
-		result, err = tui.RunInteractive(searcher(index), true)
+		t = tui.NewTui(searcher(index), true)
+		t.ExpectedKeys = expectedKeys
+		result, err = t.Run()
 		if err != nil {
-			goto finish
-		} else if result != nil {
-			fmt.Printf("%v\n", result.(*bleveResult).ID)
+			goto fail
+		}
+		if len(expectedKeys) > 1 {
+			if result.Action < len(searchKeys) {
+				fmt.Printf("%s\n", searchKeys[result.Action])
+			} else {
+				fmt.Println("enter")
+			}
+		}
+		for _, hit := range result.Results {
+			fmt.Printf("%v\n", hit.(*bleveResult).ID)
 		}
 
-	finish:
+	fail:
 		// These exit codes are similar to fzf's.
 		if err == tui.ErrSearchAborted {
 			os.Exit(130)
 		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(2)
-		} else if result == nil {
+		} else if len(result.Results) == 0 {
 			// User selected no match
 			os.Exit(1)
 		}
@@ -81,8 +112,8 @@ func (hit *bleveResult) Preview(preview *tview.TextView) {
 	preview.SetText(content.String()).SetWordWrap(true).SetDynamicColors(true)
 }
 
-func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResults, error) {
-	return func(queryString string, numResults int) (tui.SearchResults, error) {
+func searcher(index *pilikino.Index) func(query string, num int) ([]tui.SearchResult, error) {
+	return func(queryString string, numResults int) ([]tui.SearchResult, error) {
 		query, err := parseQuery(queryString)
 		if err != nil {
 			return nil, err
@@ -93,7 +124,7 @@ func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResu
 		if err != nil {
 			return nil, err
 		}
-		results := make(tui.SearchResults, len(res.Hits))
+		results := make([]tui.SearchResult, len(res.Hits))
 		for i, hit := range res.Hits {
 			results[i] = &bleveResult{*hit}
 		}

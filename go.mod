@@ -23,6 +23,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.0 // indirect
+	github.com/stretchr/testify v1.4.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
