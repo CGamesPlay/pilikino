@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var directory string
+
 var rootCmd = &cobra.Command{
 	Use:  "pilikino",
 	Long: "Pilikino helps you find where you wrote that idea down.",
@@ -19,6 +21,10 @@ var rootCmd = &cobra.Command{
 		cmd.SetArgs(args)
 		return cmd.Execute()
 	},
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&directory, "directory", "C", "", "change into directory before starting")
 }
 
 func main() {
