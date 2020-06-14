@@ -5,7 +5,14 @@ set cpo&vim
 
 let s:default_binary = 'pilikino'
 let s:is_win = has('win32') || has('win64')
-let s:default_layout = { 'down': '40%' }
+let s:default_layout = { 'up': '40%' }
+" Map from expected key name to action in vim
+let s:default_actions = {
+  \ 'enter': 'e',
+  \ 'ctrl-x': 'topleft sp',
+  \ 'ctrl-v': 'botright vert sp',
+  \ 'ctrl-t': 'tab e',
+  \ }
 
 " Windows CMD.exe shell escaping from fzf
 function! s:shellesc_cmd(arg)
@@ -55,6 +62,12 @@ function! s:use_sh()
     set shell=sh
   endif
   return [shell, shellslash, shellcmdflag, shellxquote]
+endfunction
+
+function! s:error(msg)
+  echohl ErrorMsg
+  echom a:msg
+  echohl None
 endfunction
 
 " Return a collection of information about the active tabs/windows, used to
@@ -219,6 +232,9 @@ endfunction
 
 " Executes Pilikino. If the execution is successful and the user selects a
 " file, this function calls args.callback with the results.
+"
+" You can pass arguments to the command directly by setting these keys:
+" expect, directory.
 function! pilikino#exec(args) abort
   let args = a:args
   let split = {}
@@ -227,8 +243,15 @@ function! pilikino#exec(args) abort
     " Need to write a batch file to set up the file redirection, apparently
     throw 'not implemented on windows'
   end
+  let command = s:binary_path().' search'
+  let stringArgs = ['expect', 'directory']
+  for argName in stringArgs
+    if has_key(args, argName)
+      let command .= ' --'.argName.' '.s:shellesc(args[argName])
+    endif
+  endfor
   try
-    let command = s:binary_path().' > '.tempfile
+    let command .= ' > '.tempfile
   catch
     throw v:exception
   endtry
@@ -243,29 +266,35 @@ function! pilikino#exec(args) abort
       finally
         silent! call delete(self.output)
       endtry
-      call self.next(a:status, result)
+      if a:status > 1 && a:status != 130
+        call s:error('Failed to execute pilikino')
+      else
+        call self.next(a:status, result)
+      end
     endfunction
     call s:run_terminal(termopts)
 
     setlocal statusline=Pilikino
   endfunction
   function! split.callback(status, result) closure
-    if a:status == 130
-      " User canceled search, do nothing
-      return
-    elseif a:status > 1
-      call s:error('Failed to execute pilikino')
-      return
+    if a:status == 0
+      call args.callback(a:result)
     end
-    call args.callback(a:result)
   endfunction
   call s:in_split(split)
 endfunction
 
-function! pilikino#search()
-  let args = {}
-  function! args.callback(results)
-    exec 'edit' a:results[0]
+" opts.actions is a dictionary of key names mapping to the desired command
+" to run, which will receive the selected filename.
+function! pilikino#search(...)
+  let opts = a:0 > 0 ? a:1 : {}
+  let actions = has_key(opts, 'actions') ? opts.actions : s:default_actions
+  let directory = has_key(opts, 'directory') ? opts.directory : '.'
+  let directory = '/Users/rpatterson/Seafile/Notes/'
+  let args = { 'expect': join(keys(actions), ','), 'directory': directory }
+  function! args.callback(results) closure
+    let action = actions[a:results[0]]
+    exec action.' ' simplify(directory.'/'.a:results[1])
   endfunction
   call pilikino#exec(args)
 endfunction
