@@ -3,16 +3,27 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
+if !exists('g:pilikino_directory')
+  let g:pilikino_directory = '.'
+end
+if !exists('g:pilikino_layout')
+  let g:pilikino_layout = { 'up': '40%' }
+end
+if !exists('g:pilikino_actions')
+  " Map from expected key name to action in vim
+  let g:pilikino_actions = {
+    \ 'enter': 'e',
+    \ 'ctrl-x': 'topleft sp',
+    \ 'ctrl-v': 'botright vert sp',
+    \ 'ctrl-t': 'tab e',
+    \ }
+end
+if !exists('g:pilikino_link_template')
+  let g:pilikino_link_template = '[{title}]({filename})'
+end
+
 let s:default_binary = 'pilikino'
 let s:is_win = has('win32') || has('win64')
-let s:default_layout = { 'up': '40%' }
-" Map from expected key name to action in vim
-let s:default_actions = {
-  \ 'enter': 'e',
-  \ 'ctrl-x': 'topleft sp',
-  \ 'ctrl-v': 'botright vert sp',
-  \ 'ctrl-t': 'tab e',
-  \ }
 
 " Windows CMD.exe shell escaping from fzf
 function! s:shellesc_cmd(arg)
@@ -109,8 +120,7 @@ function! s:split(opts)
   \ 'left':  ['vertical topleft', 'vertical resize', &columns],
   \ 'right': ['vertical botright', 'vertical resize', &columns] }
   let ppos = s:getpos()
-  let opts = copy(s:default_layout)
-  call extend(opts, a:opts)
+  let opts = a:opts
   try
     if s:present(opts, 'window')
       execute 'keepalt' opts.window
@@ -230,31 +240,33 @@ function! s:run_terminal(opts) abort
   endtry
 endfunction
 
-" Executes Pilikino. If the execution is successful and the user selects a
-" file, this function calls args.callback with the results.
+" Executes Pilikino.
 "
-" You can pass arguments to the command directly by setting these keys:
-" expect, directory.
+" args.callback, required, function to call with the results on success
+" args.cancel, optional, function to call when user aborts search
+" args.args, optional, a list of strings to pass as arguments
+" args.layout, optional, the layout to use for the split
 function! pilikino#exec(args) abort
   let args = a:args
   let split = {}
+  if has_key(args, 'layout')
+    let split = copy(args.layout)
+  end
   let tempfile = tempname()
   if s:is_win
     " Need to write a batch file to set up the file redirection, apparently
     throw 'not implemented on windows'
   end
-  let command = s:binary_path().' search'
-  let stringArgs = ['expect', 'directory']
-  for argName in stringArgs
-    if has_key(args, argName)
-      let command .= ' --'.argName.' '.s:shellesc(args[argName])
-    endif
-  endfor
   try
-    let command .= ' > '.tempfile
+    let command = s:binary_path().' search'
   catch
+    " Clean up the stack trace in case program not installed
     throw v:exception
   endtry
+  if has_key(a:args, 'args')
+    let command .= ' '.join(map(a:args.args, { _, v -> s:shellesc(v) }), " ")
+  end
+  let command .= ' > '.tempfile
   function! split.func(next) closure
     let termopts = { 'command': command, 'next': a:next, 'output': tempfile }
     function! termopts.on_exit(status) abort
@@ -279,24 +291,89 @@ function! pilikino#exec(args) abort
   function! split.callback(status, result) closure
     if a:status == 0
       call args.callback(a:result)
+    elseif has_key(args, 'cancel')
+      call args.cancel()
     end
   endfunction
   call s:in_split(split)
 endfunction
 
-" opts.actions is a dictionary of key names mapping to the desired command
-" to run, which will receive the selected filename.
-function! pilikino#search(...)
-  let opts = a:0 > 0 ? a:1 : {}
-  let actions = has_key(opts, 'actions') ? opts.actions : s:default_actions
-  let directory = has_key(opts, 'directory') ? opts.directory : '.'
-  let directory = '/Users/rpatterson/Seafile/Notes/'
-  let args = { 'expect': join(keys(actions), ','), 'directory': directory }
-  function! args.callback(results) closure
-    let action = actions[a:results[0]]
-    exec action.' ' simplify(directory.'/'.a:results[1])
+" opts.actions is a dictionary of key names mapping to the desired command to
+" run, which will be executed with the selected filename (with the directory
+" prepended to it). The action can also be a funcref which will be called with
+" the unmodified filename.
+" opts.cancel is a funcref which will be called if the search is aborted.
+function! pilikino#search(...) abort
+  let default_opts = {
+    \ 'actions': g:pilikino_actions,
+    \ 'directory': g:pilikino_directory,
+    \ 'layout': g:pilikino_layout,
+    \ }
+  let opts = a:0 > 0 ? copy(a:1) : {}
+  call extend(opts, default_opts, 'keep')
+
+  let opts.args = [
+    \ '--expect', join(keys(opts.actions), ","),
+    \ '--directory', opts.directory,
+    \ ]
+
+  function! opts.callback(results) closure
+    let Action = opts.actions[a:results[0]]
+    if type(Action) == v:t_string
+      let filename = simplify(opts.directory.'/'.a:results[1])
+      exec Action.' ' filename
+    else
+      let filename = a:results[1]
+      call Action(filename)
+    end
   endfunction
-  call pilikino#exec(args)
+  call pilikino#exec(opts)
+endfunction
+
+function! pilikino#format_link(filename, template) abort
+  let title = fnamemodify(a:filename, ":r")
+  let filename = a:filename
+  try
+    let Replacer = function(a:template)
+  catch
+  endtry
+  if exists('Replacer')
+    return Replacer(filename)
+  end
+  return a:template
+    \ ->substitute("{title}", title, "g")
+    \ ->substitute("{filename}", filename, "g")
+endfunction
+
+" Perform a pilikino search, and insert the found filename into the current
+" buffer. This method is expected to be called with the cursor positioned over
+" a placeholder character, which will be replaced with the link.
+function! pilikino#insert_result(...)
+  let default_opts = { 'template': g:pilikino_link_template }
+  let opts = a:0 > 0 ? a:1 : {}
+  call extend(opts, default_opts, 'keep')
+  function! s:do_insert(result) closure
+    undojoin
+    let link = pilikino#format_link(a:result, opts.template)
+    let line = getline('.')
+    let column = col('.')
+    " The cursor is presently sitting on an inserted placeholder, which should
+    " be replaced with the link.
+    call setline('.', strpart(line, 0, column - 1).link.strpart(line, column))
+    " Now move the cursor to end of the link and press "a" to resume insert
+    " mode.
+    call cursor(line('.'), column + len(link) - 1)
+    call feedkeys("a", "n")
+  endfunction
+  function! s:do_cancel() closure
+    " Delete the placeholder character and reenter insert mode, without even
+    " making an undo checkpoint.
+    undojoin | call feedkeys("s", "n")
+  endfunction
+  call pilikino#search({
+    \ 'actions': { 'enter': funcref('s:do_insert') },
+    \ 'cancel': funcref('s:do_cancel'),
+    \ })
 endfunction
 
 let &cpo = s:save_cpo
