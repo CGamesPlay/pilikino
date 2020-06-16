@@ -3,6 +3,7 @@ package pilikino
 import (
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/analyzer/simple"
+	"github.com/blevesearch/bleve/analysis/datetime/optional"
 	"github.com/blevesearch/bleve/analysis/lang/en"
 	"github.com/blevesearch/bleve/mapping"
 )
@@ -42,21 +43,27 @@ func (index *Index) DocumentCount() (uint64, error) {
 }
 
 func createIndexMapping() (mapping.IndexMapping, error) {
-	// a generic reusable mapping for english text
+	// reusable mapping for english text
 	englishTextFieldMapping := bleve.NewTextFieldMapping()
 	englishTextFieldMapping.Analyzer = en.AnalyzerName
 	englishTextFieldMapping.Store = true
 
-	// a generic reusable mapping for unstemmed words
+	// reusable mapping for unstemmed words
 	simpleFieldMapping := bleve.NewTextFieldMapping()
 	simpleFieldMapping.Analyzer = simple.Name
 	simpleFieldMapping.Store = true
+
+	// reusable mapping for dates
+	dateFieldMapping := bleve.NewDateTimeFieldMapping()
+	dateFieldMapping.DateFormat = optional.Name
 
 	noteMapping := bleve.NewDocumentMapping()
 	noteMapping.AddFieldMappingsAt("Filename", simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("Title", simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("Content", englishTextFieldMapping)
 	noteMapping.AddFieldMappingsAt("Tags", simpleFieldMapping)
+	noteMapping.AddFieldMappingsAt("ModTime", dateFieldMapping)
+	noteMapping.AddFieldMappingsAt("CreateTime", dateFieldMapping)
 
 	indexMapping := bleve.NewIndexMapping()
 	indexMapping.AddDocumentMapping("note", noteMapping)

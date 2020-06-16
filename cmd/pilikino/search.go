@@ -100,7 +100,7 @@ type bleveResult struct {
 
 func (hit *bleveResult) Label() string {
 	label := hit.ID
-	label += fmt.Sprintf(":%0.4f", hit.Score)
+	label += fmt.Sprintf(":%.4f", hit.Score)
 	return label
 }
 
@@ -112,13 +112,9 @@ func (hit *bleveResult) Preview(preview *tview.TextView) {
 			content.WriteString("\n---\n")
 		}
 	} else if docContent, ok := hit.Fields["content"]; ok {
-		content.WriteString(docContent.(string))
-	} else {
-		for field, value := range hit.Fields {
-			content.WriteString(fmt.Sprintf("%s:%v\n", field, value))
-		}
+		content.WriteString(tview.Escape(docContent.(string)))
 	}
-	preview.SetText(content.String()).SetWordWrap(true).SetDynamicColors(true)
+	preview.SetScrollable(true).SetText(content.String()).SetWordWrap(true).SetDynamicColors(true).ScrollTo(0, 0)
 }
 
 func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResult, error) {
@@ -128,23 +124,23 @@ func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResu
 			sr := tui.SearchResult{QueryError: err}
 			return sr, nil
 		}
-		search := bleve.NewSearchRequestOptions(query, numResults, 0, false)
-		search.Fields = []string{"content"}
-		search.Highlight = bleve.NewHighlight()
-		res, err := index.Bleve.Search(search)
+		sr := bleve.NewSearchRequestOptions(query, numResults, 0, false)
+		sr.Fields = []string{"content"}
+		sr.Highlight = bleve.NewHighlight()
+		bleveRes, err := index.Bleve.Search(sr)
 		if err != nil {
 			return tui.SearchResult{}, err
 		}
-		results := make([]tui.Document, len(res.Hits))
-		for i, hit := range res.Hits {
-			results[i] = &bleveResult{*hit}
+		hits := make([]tui.Document, len(bleveRes.Hits))
+		for i, hit := range bleveRes.Hits {
+			hits[i] = &bleveResult{*hit}
 		}
-		sr := tui.SearchResult{
-			Results: results,
+		res := tui.SearchResult{
+			Results: hits,
 			// This works because we have a built-in matchAll for all queries
-			TotalCandidates: res.Total,
+			TotalCandidates: bleveRes.Total,
 		}
-		return sr, nil
+		return res, nil
 	}
 }
 

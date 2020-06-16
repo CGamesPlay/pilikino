@@ -48,16 +48,16 @@ func runFilter(index *pilikino.Index, queryString string) error {
 	if err != nil {
 		return err
 	}
-	search := bleve.NewSearchRequestOptions(query, numResults, 0, false)
-	search.Highlight = bleve.NewHighlight()
-	res, err := index.Bleve.Search(search)
+	sr := bleve.NewSearchRequestOptions(query, numResults, 0, false)
+	sr.Highlight = bleve.NewHighlight()
+	res, err := index.Bleve.Search(sr)
 	if err != nil {
 		return err
 	} else if res.Total == 0 {
 		return ErrNoResults
 	}
 	for _, hit := range res.Hits {
-		fmt.Printf("%v\n", hit.ID)
+		fmt.Println(hit.ID)
 	}
 	return nil
 }

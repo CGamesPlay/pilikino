@@ -4,14 +4,12 @@ This is a quick demo of bleve search on a directory of Markdown files.
 
 ### Current task
 
-Improve crawling/parsing process
-
-- indexing frontmatter
-- indexing link graph (goldmark, go-markdown)
+Design the custom query string format.
 
 ### Next steps
 
-- Improve search functionality (queries, ranking, recency)
+- Custom query string parsing
+- Parsing documents / link graph (goldmark, go-markdown)
 - More vim polish
 - Alfred workflow
 
