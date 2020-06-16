@@ -4,7 +4,18 @@ This is a quick demo of bleve search on a directory of Markdown files.
 
 ### Current task
 
-Command line interface.
+Improve crawling/parsing process
+
+- Async crawling
+- indexing frontmatter
+- indexing link graph
+
+### Next steps
+
+- Improve search functionality (queries, ranking, recency)
+- More vim polish
+- Alfred workflow
+- Indexing in background
 
 What are the tasks that this tool will perform?
 
@@ -14,13 +25,10 @@ What are the tasks that this tool will perform?
 - Format migrations (e.g. relative links <-> wikilinks)
 - Resolve ambiguous link (e.g. numeric file prefix instead of full link)
 
-### Next steps
+### Vim plugin TODO list
 
-- Write a better command line interface
-- Vim plugin polish (vertical split, etc). Goal: replace existing vimwiki config
-- Improve search functionality (queries, ranking, recency)
-- Indexing in background
-- Investigate Maktaba, Glaive, Vroom for vim plugin
+- Write documentation and vroom tests
+- Write `pilikino#writing` optional plugin and move link insertion, following there.
 
 ## Reference
 

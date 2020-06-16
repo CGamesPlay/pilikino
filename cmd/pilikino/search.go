@@ -119,6 +119,7 @@ func searcher(index *pilikino.Index) func(query string, num int) ([]tui.SearchRe
 			return nil, err
 		}
 		search := bleve.NewSearchRequestOptions(query, numResults, 0, false)
+		search.Fields = []string{"content"}
 		search.Highlight = bleve.NewHighlight()
 		res, err := index.Bleve.Search(search)
 		if err != nil {

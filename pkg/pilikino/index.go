@@ -2,7 +2,7 @@ package pilikino
 
 import (
 	"github.com/blevesearch/bleve"
-	"github.com/blevesearch/bleve/analysis/analyzer/keyword"
+	"github.com/blevesearch/bleve/analysis/analyzer/simple"
 	"github.com/blevesearch/bleve/analysis/lang/en"
 	"github.com/blevesearch/bleve/mapping"
 )
@@ -34,13 +34,15 @@ func createIndexMapping() (mapping.IndexMapping, error) {
 	// a generic reusable mapping for english text
 	englishTextFieldMapping := bleve.NewTextFieldMapping()
 	englishTextFieldMapping.Analyzer = en.AnalyzerName
+	englishTextFieldMapping.Store = true
 
 	// a generic reusable mapping for keyword text
-	keywordFieldMapping := bleve.NewTextFieldMapping()
-	keywordFieldMapping.Analyzer = keyword.Name
+	simpleFieldMapping := bleve.NewTextFieldMapping()
+	simpleFieldMapping.Analyzer = simple.Name
+	simpleFieldMapping.Store = true
 
 	noteMapping := bleve.NewDocumentMapping()
-	noteMapping.AddFieldMappingsAt("Filename", keywordFieldMapping)
+	noteMapping.AddFieldMappingsAt("Filename", simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("Content", englishTextFieldMapping)
 
 	indexMapping := bleve.NewIndexMapping()

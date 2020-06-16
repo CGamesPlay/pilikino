@@ -19,7 +19,7 @@ if !exists('g:pilikino_actions')
     \ }
 end
 if !exists('g:pilikino_link_template')
-  let g:pilikino_link_template = '[{title}]({filename})'
+  let g:pilikino_link_template = '{filename}'
 end
 
 let s:default_binary = 'pilikino'
