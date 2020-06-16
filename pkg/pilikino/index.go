@@ -30,6 +30,17 @@ func NewMemOnlyIndex() (*Index, error) {
 	return index, nil
 }
 
+// DocumentCount returns the total number of documents in the index
+func (index *Index) DocumentCount() (uint64, error) {
+	q := bleve.NewMatchAllQuery()
+	search := bleve.NewSearchRequestOptions(q, 0, 0, false)
+	res, err := index.Bleve.Search(search)
+	if err != nil {
+		return 0, err
+	}
+	return res.Total, nil
+}
+
 func createIndexMapping() (mapping.IndexMapping, error) {
 	// a generic reusable mapping for english text
 	englishTextFieldMapping := bleve.NewTextFieldMapping()

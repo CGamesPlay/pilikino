@@ -8,7 +8,7 @@ Improve crawling/parsing process
 
 - Async crawling
 - indexing frontmatter
-- indexing link graph
+- indexing link graph (goldmark, go-markdown)
 
 ### Next steps
 

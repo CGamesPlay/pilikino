@@ -28,10 +28,11 @@ var searchCmd = &cobra.Command{
 Using the --expect flag, you can build integrations with other commands. If this option is set, the first line of output for a successful search will be the name of the key that was typed to accept the search. Example key names: f1, ctrl-v, enter, alt-shift-s. Note that enter will always accept the search, but will not be printed unless --expect is specified. You can use --expect=enter to make this explicit.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			index  *pilikino.Index
-			result *tui.InteractiveResults
-			t      *tui.Tui
-			err    error
+			index    *pilikino.Index
+			result   *tui.InteractiveResults
+			t        *tui.Tui
+			docCount uint64
+			err      error
 		)
 
 		expectedKeys := make([]tui.Key, len(searchKeys)+1)
@@ -48,8 +49,12 @@ Using the --expect flag, you can build integrations with other commands. If this
 		if index, err = buildIndex(); err != nil {
 			goto fail
 		}
+		if docCount, err = index.DocumentCount(); err != nil {
+			goto fail
+		}
 
 		t = tui.NewTui(searcher(index), true)
+		t.SetStatusText(fmt.Sprintf("Scanned %d files", docCount))
 		t.ExpectedKeys = expectedKeys
 		result, err = t.Run()
 		if err != nil {
@@ -112,23 +117,29 @@ func (hit *bleveResult) Preview(preview *tview.TextView) {
 	preview.SetText(content.String()).SetWordWrap(true).SetDynamicColors(true)
 }
 
-func searcher(index *pilikino.Index) func(query string, num int) ([]tui.SearchResult, error) {
-	return func(queryString string, numResults int) ([]tui.SearchResult, error) {
+func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResult, error) {
+	return func(queryString string, numResults int) (tui.SearchResult, error) {
 		query, err := parseQuery(queryString)
 		if err != nil {
-			return nil, err
+			sr := tui.SearchResult{QueryError: err}
+			return sr, nil
 		}
 		search := bleve.NewSearchRequestOptions(query, numResults, 0, false)
 		search.Fields = []string{"content"}
 		search.Highlight = bleve.NewHighlight()
 		res, err := index.Bleve.Search(search)
 		if err != nil {
-			return nil, err
+			return tui.SearchResult{}, err
 		}
-		results := make([]tui.SearchResult, len(res.Hits))
+		results := make([]tui.Document, len(res.Hits))
 		for i, hit := range res.Hits {
 			results[i] = &bleveResult{*hit}
 		}
-		return results, nil
+		sr := tui.SearchResult{
+			Results: results,
+			// This works because we have a built-in matchAll for all queries
+			TotalCandidates: res.Total,
+		}
+		return sr, nil
 	}
 }

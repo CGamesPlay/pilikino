@@ -26,8 +26,10 @@ func buildIndex() (*pilikino.Index, error) {
 }
 
 func parseQuery(queryString string) (query.Query, error) {
+	matchAll := query.NewMatchAllQuery()
+	matchAll.SetBoost(0.1)
 	if len(queryString) == 0 {
-		return query.NewMatchAllQuery(), nil
+		return matchAll, nil
 	} else if runes := []rune(queryString); unicode.IsLetter(runes[len(runes)-1]) {
 		queryString += "*"
 	}
@@ -36,6 +38,6 @@ func parseQuery(queryString string) (query.Query, error) {
 		return nil, err
 	}
 	boolQuery := parsed.(*query.BooleanQuery)
-	boolQuery.AddShould(query.NewMatchAllQuery())
+	boolQuery.AddShould(matchAll)
 	return parsed, nil
 }
