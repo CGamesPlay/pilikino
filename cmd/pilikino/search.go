@@ -31,7 +31,7 @@ Using the --expect flag, you can build integrations with other commands. If this
 			index    *pilikino.Index
 			result   *tui.InteractiveResults
 			t        *tui.Tui
-			docCount uint64
+			asyncErr chan error
 			err      error
 		)
 
@@ -46,17 +46,21 @@ Using the --expect flag, you can build integrations with other commands. If this
 		}
 		expectedKeys[len(searchKeys)] = tui.KeyEnter
 
-		if index, err = buildIndex(); err != nil {
-			goto fail
-		}
-		if docCount, err = index.DocumentCount(); err != nil {
+		if index, err = getIndex(); err != nil {
 			goto fail
 		}
 
 		t = tui.NewTui(searcher(index), true)
-		t.SetStatusText(fmt.Sprintf("Scanned %d files", docCount))
 		t.ExpectedKeys = expectedKeys
-		result, err = t.Run()
+		result, err = t.Run(func() {
+			asyncErr = make(chan error, 1)
+			go indexAsync(index, t, asyncErr)
+		})
+		// If an async error happened, take priority over the ErrSearchAborted.
+		select {
+		case err = <-asyncErr:
+		default:
+		}
 		if err != nil {
 			goto fail
 		}
@@ -141,5 +145,16 @@ func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResu
 			TotalCandidates: res.Total,
 		}
 		return sr, nil
+	}
+}
+
+func indexAsync(index *pilikino.Index, t *tui.Tui, asyncErr chan error) {
+	progress := func(p pilikino.IndexProgress) {
+		t.SetStatusText(fmt.Sprintf("Scanned %d files", p.Scanned))
+		t.Refresh()
+	}
+	if err := index.Reindex(progress); err != nil {
+		asyncErr <- err
+		t.Stop()
 	}
 }

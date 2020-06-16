@@ -24,7 +24,10 @@ var filterCmd = &cobra.Command{
 	Short: "Run a single query and print results",
 	Long:  `Runs a query and outputs the results in the format specified. Designed to be used as input to other programs.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		index, err := buildIndex()
+		index, err := getIndex()
+		if err == nil {
+			err = index.Reindex(nil)
+		}
 		if err == nil {
 			err = runFilter(index, strings.Join(args, " "))
 		}

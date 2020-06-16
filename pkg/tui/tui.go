@@ -138,15 +138,26 @@ func (tui *Tui) Refresh() {
 // take precedence over the set value.
 func (tui *Tui) SetStatusText(value string) {
 	tui.statusText.Store(value)
+	val := tui.state.Load()
+	if val != nil {
+		is := val.(*interactiveState)
+		is.app.QueueUpdateDraw(func() {
+			is.updateStatusLine()
+		})
+	}
 }
 
-// Run performs an interactive search, returning the selected item.
-func (tui *Tui) Run() (*InteractiveResults, error) {
+// Run performs an interactive search, returning the selected item. It accepts
+// a function which will be called once from the main goroutine once the
+// application is fully set up, which can be used to start background
+// processes.
+func (tui *Tui) Run(ready func()) (*InteractiveResults, error) {
 	if ok := atomic.CompareAndSwapInt32(&tui.locked, 0, 1); !ok {
 		return nil, errors.New("attempt to perform interactive search concurrently")
 	}
 	defer func() {
 		atomic.StoreInt32(&tui.locked, 0)
+		tui.state.Store((*interactiveState)(nil))
 	}()
 	is := &interactiveState{
 		statusText:  &tui.statusText,
@@ -172,14 +183,15 @@ func (tui *Tui) Run() (*InteractiveResults, error) {
 		screen.Clear()
 		return false
 	})
-	isFirstDraw := true
 	is.app.SetAfterDrawFunc(func(screen tcell.Screen) {
-		if isFirstDraw {
-			// We have to do this after the first draw of the application to
-			// know how many screen lines are available for results.
-			is.update(initialQuery)
+		tui.state.Store(is)
+		if ready != nil {
+			ready()
 		}
-		isFirstDraw = false
+		// We have to do this after the first draw of the application to know
+		// how many screen lines are available for results.
+		is.update(initialQuery)
+		is.app.SetAfterDrawFunc(nil)
 	})
 
 	is.input = tview.NewInputField().
@@ -263,11 +275,6 @@ func (tui *Tui) Run() (*InteractiveResults, error) {
 	})
 
 	is.app.SetRoot(flex, true).SetFocus(flex)
-
-	tui.state.Store(is)
-	defer func() {
-		tui.state.Store((*interactiveState)(nil))
-	}()
 
 	if err := is.app.Run(); err != nil {
 		is.err = err

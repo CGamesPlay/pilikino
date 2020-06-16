@@ -9,7 +9,7 @@ import (
 	"github.com/blevesearch/bleve/search/query"
 )
 
-func buildIndex() (*pilikino.Index, error) {
+func getIndex() (*pilikino.Index, error) {
 	if directory != "" {
 		if err := os.Chdir(directory); err != nil {
 			return nil, err
@@ -17,9 +17,6 @@ func buildIndex() (*pilikino.Index, error) {
 	}
 	index, err := pilikino.NewMemOnlyIndex()
 	if err != nil {
-		return nil, err
-	}
-	if err := index.Reindex(); err != nil {
 		return nil, err
 	}
 	return index, nil

@@ -6,7 +6,6 @@ This is a quick demo of bleve search on a directory of Markdown files.
 
 Improve crawling/parsing process
 
-- Async crawling
 - indexing frontmatter
 - indexing link graph (goldmark, go-markdown)
 
@@ -15,7 +14,6 @@ Improve crawling/parsing process
 - Improve search functionality (queries, ranking, recency)
 - More vim polish
 - Alfred workflow
-- Indexing in background
 
 What are the tasks that this tool will perform?
 
