@@ -123,7 +123,7 @@ func (hit *bleveResult) Preview(preview *tview.TextView) {
 
 func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResult, error) {
 	return func(queryString string, numResults int) (tui.SearchResult, error) {
-		query, err := parseQuery(queryString)
+		query, err := parseQuery(queryString, true)
 		if err != nil {
 			sr := tui.SearchResult{QueryError: err}
 			return sr, nil

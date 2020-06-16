@@ -3,6 +3,7 @@ module github.com/CGamesPlay/pilikino
 go 1.13
 
 require (
+	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1
 	github.com/blevesearch/bleve v1.0.9
 	github.com/cznic/b v0.0.0-20181122101859-a26611c4d92d // indirect
 	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect
@@ -27,4 +28,6 @@ require (
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )

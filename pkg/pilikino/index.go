@@ -47,14 +47,16 @@ func createIndexMapping() (mapping.IndexMapping, error) {
 	englishTextFieldMapping.Analyzer = en.AnalyzerName
 	englishTextFieldMapping.Store = true
 
-	// a generic reusable mapping for keyword text
+	// a generic reusable mapping for unstemmed words
 	simpleFieldMapping := bleve.NewTextFieldMapping()
 	simpleFieldMapping.Analyzer = simple.Name
 	simpleFieldMapping.Store = true
 
 	noteMapping := bleve.NewDocumentMapping()
 	noteMapping.AddFieldMappingsAt("Filename", simpleFieldMapping)
+	noteMapping.AddFieldMappingsAt("Title", simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("Content", englishTextFieldMapping)
+	noteMapping.AddFieldMappingsAt("Tags", simpleFieldMapping)
 
 	indexMapping := bleve.NewIndexMapping()
 	indexMapping.AddDocumentMapping("note", noteMapping)

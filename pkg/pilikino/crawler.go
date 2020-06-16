@@ -1,13 +1,9 @@
 package pilikino
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
-
-	"github.com/blevesearch/bleve"
 )
 
 const progressInterval = 200 * time.Millisecond
@@ -16,27 +12,6 @@ const progressInterval = 200 * time.Millisecond
 type IndexProgress struct {
 	Scanned uint64
 	Total   uint64
-}
-
-type noteData struct {
-	Filename string    `json:"filename"`
-	ModTime  time.Time `json:"mtime"`
-	Title    string    `json:"title"`
-	Content  string    `json:"content"`
-}
-
-func indexNote(batch *bleve.Batch, path string, info os.FileInfo) error {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	note := noteData{
-		Filename: path,
-		ModTime:  info.ModTime(),
-		Title:    path,
-		Content:  string(content),
-	}
-	return batch.Index(path, note)
 }
 
 // Reindex crawls all files in the root directory and adds them to the index.
@@ -62,9 +37,7 @@ func (index *Index) Reindex(progressFunc func(IndexProgress)) error {
 		}
 		progress.Scanned++
 		progress.Total++
-		if strings.HasSuffix(path, ".md") {
-			err = indexNote(batch, path, info)
-		}
+		err = indexNote(batch, path, info)
 		if time.Now().After(batchTime) {
 			cycleBatch()
 		}

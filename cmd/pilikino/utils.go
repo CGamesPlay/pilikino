@@ -22,11 +22,17 @@ func getIndex() (*pilikino.Index, error) {
 	return index, nil
 }
 
-func parseQuery(queryString string) (query.Query, error) {
-	matchAll := query.NewMatchAllQuery()
-	matchAll.SetBoost(0.1)
+func parseQuery(queryString string, includeAll bool) (query.Query, error) {
+	var defaultMatch query.Query
+	if includeAll {
+		matchAll := query.NewMatchAllQuery()
+		matchAll.SetBoost(0.1)
+		defaultMatch = matchAll
+	} else {
+		defaultMatch = query.NewMatchNoneQuery()
+	}
 	if len(queryString) == 0 {
-		return matchAll, nil
+		return defaultMatch, nil
 	} else if runes := []rune(queryString); unicode.IsLetter(runes[len(runes)-1]) {
 		queryString += "*"
 	}
@@ -35,6 +41,6 @@ func parseQuery(queryString string) (query.Query, error) {
 		return nil, err
 	}
 	boolQuery := parsed.(*query.BooleanQuery)
-	boolQuery.AddShould(matchAll)
+	boolQuery.AddShould(defaultMatch)
 	return parsed, nil
 }

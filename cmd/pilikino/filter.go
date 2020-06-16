@@ -33,18 +33,18 @@ var filterCmd = &cobra.Command{
 		}
 
 		// These exit codes are similar to grep's.
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(2)
-		} else if err == ErrNoResults {
+		if err == ErrNoResults {
 			// No matches
 			os.Exit(1)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(2)
 		}
 	},
 }
 
 func runFilter(index *pilikino.Index, queryString string) error {
-	query, err := parseQuery(queryString)
+	query, err := parseQuery(queryString, false)
 	if err != nil {
 		return err
 	}
