@@ -2,11 +2,9 @@ package main
 
 import (
 	"os"
-	"unicode"
 
 	"github.com/CGamesPlay/pilikino/pkg/pilikino"
 	"github.com/CGamesPlay/pilikino/pkg/search"
-	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search/query"
 )
 
@@ -36,14 +34,11 @@ func parseQuery(queryString string, includeAll bool) (query.Query, error) {
 	if len(queryString) == 0 {
 		baseQuery = query.NewBooleanQuery([]query.Query{defaultMatch}, nil, nil)
 	} else {
-		if runes := []rune(queryString); unicode.IsLetter(runes[len(runes)-1]) {
-			queryString += "*"
-		}
-		parsed, err := bleve.NewQueryStringQuery(queryString).Parse()
+		parsed, err := search.ParseQuery(queryString)
 		if err != nil {
 			return nil, err
 		}
-		baseQuery = query.NewBooleanQuery([]query.Query{parsed}, nil, nil)
+		baseQuery = query.NewBooleanQuery(nil, []query.Query{parsed, defaultMatch}, nil)
 	}
 	recency := search.NewRecencyQuery("modified", baseQuery)
 	return recency, nil
