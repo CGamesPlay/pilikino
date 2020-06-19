@@ -12,11 +12,15 @@ import (
 
 //go:generate go run golang.org/x/tools/cmd/goyacc -l -o query_parser.go query_parser.y
 
-const specialChars = "`"
+// specialChars are never part of a term, unless prefixed by a backslash
+const specialChars = "`:\""
 
-// isTermRune checks if a character can be part of a term
-func isTermRune(r rune) bool {
-	return unicode.IsGraphic(r) && !unicode.IsPunct(r) && !unicode.IsSpace(r) && strings.IndexRune(specialChars, r) == -1
+// isTermRune checks if a character can be part of a term at the given index
+func isTermRune(r rune, pos int) bool {
+	if pos == 0 {
+		return unicode.IsGraphic(r) && !unicode.IsPunct(r) && !unicode.IsSpace(r) && strings.IndexRune(specialChars, r) == -1
+	}
+	return unicode.IsGraphic(r) && !unicode.IsSpace(r) && strings.IndexRune(specialChars, r) == -1
 }
 
 func init() {
@@ -44,7 +48,7 @@ ignore:
 		l.nextRune()
 		l.ignore()
 		goto ignore
-	case isTermRune(r) || r == '\\':
+	case isTermRune(r, 0) || r == '\\':
 		return l.nextTerm(val)
 	case unicode.IsGraphic(r):
 		l.nextRune()
@@ -80,7 +84,7 @@ func (l *lexer) nextTerm(val *string) rune {
 			hasSlashes = true
 			l.nextRune()
 			continue
-		} else if !isTermRune(r) {
+		} else if !isTermRune(r, l.pos-l.start-1) {
 			l.backup()
 			break
 		}

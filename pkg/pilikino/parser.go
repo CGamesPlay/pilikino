@@ -1,8 +1,10 @@
 package pilikino
 
 import (
-	"bytes"
+	"errors"
+	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -10,37 +12,88 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/blevesearch/bleve"
-	"gopkg.in/yaml.v3"
+	"github.com/yuin/goldmark"
+	meta "github.com/yuin/goldmark-meta"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 )
 
 type noteData struct {
 	Filename    string    `json:"filename"`
-	CreateTime  time.Time `json:"created"`
+	Date        time.Time `json:"date"`
 	ModTime     time.Time `json:"modified"`
 	Title       string    `json:"title"`
 	Tags        []string  `json:"tags"`
+	Links       []string  `json:"links"`
 	Content     string    `json:"content"`
-	ParseErrors []string  `josn:"errors"`
+	ParseErrors []string  `json:"errors"`
+}
+
+func (note *noteData) AddLink(dest string) {
+	note.Links = append(note.Links, dest)
+}
+
+func (note *noteData) AddParseError(err string) {
+	note.ParseErrors = append(note.ParseErrors, err)
 }
 
 var tagSep = regexp.MustCompile("[^-a-z0-9_]+")
 
-func parseHeader(note *noteData, header map[string]interface{}) error {
-	if title, ok := header["title"]; ok {
-		note.Title = title.(string)
+func resolveLink(index *Index, from, to string) (string, error) {
+	toURI, err := url.Parse(to)
+	if err != nil {
+		return "", err
 	}
-	if ctimeVal, ok := header["date"]; ok {
+	if toURI.Host != "" {
+		return "", nil
+	}
+	return index.resolveLink(from, to)
+}
+
+func extractLinks(index *Index, note *noteData, file []byte) func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+	return func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering && n.Kind() == ast.KindLink {
+			link, ok := n.(*ast.Link)
+			if !ok {
+				return ast.WalkStop, errors.New("node KindLink is not ast.Link")
+			}
+			dest := string(link.Destination)
+			resolved, err := resolveLink(index, note.Filename, dest)
+			if err != nil {
+				note.AddParseError(fmt.Sprintf("ambiguous link %#v", dest))
+			} else if resolved != "" {
+				note.AddLink(resolved)
+			}
+		}
+		return ast.WalkContinue, nil
+	}
+}
+
+func parseMarkdownNote(index *Index, note *noteData, file []byte) error {
+	markdown := goldmark.New(goldmark.WithExtensions(meta.Meta))
+	context := parser.NewContext()
+	reader := text.NewReader(file)
+	doc := markdown.Parser().Parse(reader, parser.WithContext(context))
+	frontmatter := meta.Get(context)
+	if titleVal, ok := frontmatter["title"]; ok {
+		if titleStr, ok := titleVal.(string); ok {
+			note.Title = titleStr
+		} else {
+			note.AddParseError("title is not string")
+		}
+	}
+	if ctimeVal, ok := frontmatter["date"]; ok {
 		if ctimeStr, ok := ctimeVal.(string); ok {
 			ctime, err := dateparse.ParseLocal(ctimeStr)
 			if err != nil {
-				note.ParseErrors = append(note.ParseErrors, err.Error())
+				note.AddParseError(fmt.Sprintf("ctime unrecognized: %v", err))
 			} else {
-				note.CreateTime = ctime
+				note.Date = ctime
 			}
 		}
-
 	}
-	if tagField, ok := header["tags"]; ok {
+	if tagField, ok := frontmatter["tags"]; ok {
 		var tagList []string
 		if tagStr, ok := tagField.(string); ok {
 			tagList = tagSep.Split(tagStr, -1)
@@ -58,34 +111,13 @@ func parseHeader(note *noteData, header map[string]interface{}) error {
 			}
 		}
 	}
-	return nil
-}
-
-func parseNoteContent(note *noteData) error {
-	b := []byte(note.Content)
-	if bytes.HasPrefix(b, []byte("---\n")) {
-		endHeader := bytes.Index(b, []byte("\n---\n"))
-		if endHeader == -1 {
-			return nil
-		}
-		header := make(map[string]interface{})
-		if err := yaml.Unmarshal(b[0:endHeader], &header); err != nil {
-			return err
-		}
-		if err := parseHeader(note, header); err != nil {
-			return err
-		}
+	if err := ast.Walk(doc, extractLinks(index, note, file)); err != nil {
+		note.AddParseError(err.Error())
 	}
 	return nil
 }
 
-func convertNewlines(b []byte) []byte {
-	b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
-	b = bytes.Replace(b, []byte{'\r'}, []byte{'\n'}, -1)
-	return b
-}
-
-func indexNote(batch *bleve.Batch, path string, info os.FileInfo) error {
+func indexNote(index *Index, batch *bleve.Batch, path string, info os.FileInfo) error {
 	if !strings.HasSuffix(path, ".md") {
 		return nil
 	}
@@ -93,15 +125,13 @@ func indexNote(batch *bleve.Batch, path string, info os.FileInfo) error {
 	if err != nil {
 		return err
 	}
-	content = convertNewlines(content)
 	note := noteData{
-		Filename:    path,
-		ModTime:     info.ModTime(),
-		Title:       path,
-		Content:     string(content),
-		ParseErrors: []string{},
+		Filename: path,
+		ModTime:  info.ModTime(),
+		Title:    path,
+		Content:  string(content),
 	}
-	err = parseNoteContent(&note)
+	err = parseMarkdownNote(index, &note, content)
 	if indexErr := batch.Index(path, note); indexErr != nil {
 		note.ParseErrors = append(note.ParseErrors, err.Error())
 	}

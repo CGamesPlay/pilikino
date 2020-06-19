@@ -2,23 +2,6 @@
 
 This is a quick demo of bleve search on a directory of Markdown files.
 
-### Current task
-
-Design the custom query string format.
-
-Notes:
-
-- [Close query syntax](https://help.close.com/docs/searching-guide-single-queries) - relative dates, parenthesis, sorting
-- [golang lexer](https://talks.golang.org/2011/lex.slide)
-- [golang parser](https://about.sourcegraph.com/go/gophercon-2018-how-to-write-a-parser-in-go)
-
-### Next steps
-
-- Custom query string parsing
-- Parsing documents / link graph (goldmark, go-markdown)
-- More vim polish
-- Alfred workflow
-
 What are the tasks that this tool will perform?
 
 - Full-text search of notes (CLI, vim, Alfred)
@@ -27,10 +10,30 @@ What are the tasks that this tool will perform?
 - Format migrations (e.g. relative links <-> wikilinks)
 - Resolve ambiguous link (e.g. numeric file prefix instead of full link)
 
+### Current task
+
+Nothing!
+
+### Next steps
+
+- More vim polish
+- Alfred workflow
+- Improve match highlighting preview window
+
 ### Vim plugin TODO list
 
 - Write documentation and vroom tests
 - Write `pilikino#writing` optional plugin and move link insertion, following there.
+
+### Querying TODO list
+
+- `+` should remove the default matchall
+- improve being-typed word matching and remove the default match-all
+- filename search
+- automatic quote closing
+- date searching for created / modified
+- convenience searches for `has:errors`, `is:orphan`, etc
+- probably just stop using yacc
 
 ## Reference
 

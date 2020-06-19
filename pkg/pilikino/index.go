@@ -2,6 +2,7 @@ package pilikino
 
 import (
 	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/analysis/analyzer/keyword"
 	"github.com/blevesearch/bleve/analysis/analyzer/simple"
 	"github.com/blevesearch/bleve/analysis/datetime/optional"
 	"github.com/blevesearch/bleve/analysis/lang/en"
@@ -53,17 +54,22 @@ func createIndexMapping() (mapping.IndexMapping, error) {
 	simpleFieldMapping.Analyzer = simple.Name
 	simpleFieldMapping.Store = true
 
+	// reusable mapping for unanalyzed words
+	keywordFieldMapping := bleve.NewTextFieldMapping()
+	keywordFieldMapping.Analyzer = keyword.Name
+
 	// reusable mapping for dates
 	dateFieldMapping := bleve.NewDateTimeFieldMapping()
 	dateFieldMapping.DateFormat = optional.Name
 
 	noteMapping := bleve.NewDocumentMapping()
-	noteMapping.AddFieldMappingsAt("Filename", simpleFieldMapping)
-	noteMapping.AddFieldMappingsAt("Title", englishTextFieldMapping)
-	noteMapping.AddFieldMappingsAt("Content", englishTextFieldMapping)
-	noteMapping.AddFieldMappingsAt("Tags", simpleFieldMapping)
-	noteMapping.AddFieldMappingsAt("ModTime", dateFieldMapping)
-	noteMapping.AddFieldMappingsAt("CreateTime", dateFieldMapping)
+	noteMapping.AddFieldMappingsAt("filename", simpleFieldMapping)
+	noteMapping.AddFieldMappingsAt("title", englishTextFieldMapping)
+	noteMapping.AddFieldMappingsAt("content", englishTextFieldMapping)
+	noteMapping.AddFieldMappingsAt("tags", simpleFieldMapping)
+	noteMapping.AddFieldMappingsAt("modified", dateFieldMapping)
+	noteMapping.AddFieldMappingsAt("date", dateFieldMapping)
+	noteMapping.AddFieldMappingsAt("links", keywordFieldMapping)
 
 	indexMapping := bleve.NewIndexMapping()
 	indexMapping.AddDocumentMapping("note", noteMapping)

@@ -30,9 +30,9 @@ func parseQuery(queryString string, includeAll bool) (query.Query, error) {
 	} else {
 		defaultMatch = query.NewMatchNoneQuery()
 	}
-	var baseQuery *query.BooleanQuery
+	var baseQuery query.Query
 	if len(queryString) == 0 {
-		baseQuery = query.NewBooleanQuery([]query.Query{defaultMatch}, nil, nil)
+		baseQuery = defaultMatch
 	} else {
 		parsed, err := search.ParseQuery(queryString)
 		if err != nil {

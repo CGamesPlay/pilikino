@@ -141,6 +141,13 @@ func TestParser(t *testing.T) {
 					map[string]interface{}{"field": "tags", "match": "tag"},
 				}},
 			},
+		}, {
+			input: "links:20200521-1059-git_blame.md",
+			result: map[string]interface{}{
+				"should": map[string]interface{}{"disjuncts": []interface{}{
+					map[string]interface{}{"field": "links", "match": "20200521-1059-git_blame.md"},
+				}},
+			},
 		},
 	}
 	for i, c := range testcases {

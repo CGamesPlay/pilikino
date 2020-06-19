@@ -17,12 +17,14 @@ func TestParseNoteContent(t *testing.T) {
 	require.NoError(t, err)
 	for _, caseName := range files {
 		t.Run(caseName, func(t *testing.T) {
+			index, err := NewMemOnlyIndex()
+			require.NoError(t, err)
+
 			bytes, err := ioutil.ReadFile(caseName)
 			require.NoError(t, err)
 
-			note := noteData{Content: string(bytes)}
-			parseNoteContent(&note)
-			note.Content = ""
+			note := noteData{}
+			parseMarkdownNote(index, &note, bytes)
 			actual, err := json.Marshal(note)
 			require.NoError(t, err)
 

@@ -1,8 +1,11 @@
 package pilikino
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -37,7 +40,7 @@ func (index *Index) Reindex(progressFunc func(IndexProgress)) error {
 		}
 		progress.Scanned++
 		progress.Total++
-		err = indexNote(batch, path, info)
+		err = indexNote(index, batch, path, info)
 		if time.Now().After(batchTime) {
 			cycleBatch()
 		}
@@ -49,4 +52,32 @@ func (index *Index) Reindex(progressFunc func(IndexProgress)) error {
 	cycleBatch()
 
 	return nil
+}
+
+var globEscaper = strings.NewReplacer(
+	"*", "\\*",
+	"?", "\\?",
+	"[", "\\[",
+	"\\", "\\\\",
+)
+
+// resolveLink will attempt to locate a note located at `to` relative to
+// `from`. This may resolve links that are specified from partial filenames.
+// This method will only return an error if there are multiple ambiguous files
+// that could be referred to. If there are no possible files, it will return an
+// empty string and nil error.
+func (index *Index) resolveLink(from, to string) (string, error) {
+	fromDir := filepath.Dir(from)
+	toDir, toBase := filepath.Split(to)
+	toGlob := fmt.Sprintf("*%v*", globEscaper.Replace(toBase))
+	glob := filepath.Join(".", globEscaper.Replace(fromDir), globEscaper.Replace(toDir), toGlob)
+	matches, err := filepath.Glob(glob)
+	if err != nil {
+		panic("bad pattern")
+	} else if len(matches) > 1 {
+		return "", errors.New("ambiguous link")
+	} else if len(matches) == 0 {
+		return "", nil
+	}
+	return matches[0], nil
 }
