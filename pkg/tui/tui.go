@@ -68,6 +68,9 @@ type Tui struct {
 	// ExpectedKeys is the array of keys which will be accepted by the UI. The
 	// default value of this field contains KeyEnter.
 	ExpectedKeys []Key
+	// InitialQuery is the query that will be prefilled on the next invocation
+	// of Run.
+	InitialQuery string
 }
 
 // InteractiveResults holds the results of the interactive mode search.
@@ -173,7 +176,7 @@ func (tui *Tui) Run(ready func()) (*InteractiveResults, error) {
 	}
 	go runSearcher(st, tui.SearchFunc)
 
-	var initialQuery string
+	initialQuery := tui.InitialQuery
 	var results = InteractiveResults{Action: -1}
 
 	is.app = tview.NewApplication()

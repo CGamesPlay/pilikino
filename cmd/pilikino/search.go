@@ -14,9 +14,11 @@ import (
 )
 
 var searchKeys []string
+var initialQuery string
 
 func init() {
 	searchCmd.Flags().StringSliceVar(&searchKeys, "expect", []string{}, "list of keys to accept a result")
+	searchCmd.Flags().StringVar(&initialQuery, "query", "", "query string to prefill")
 	rootCmd.AddCommand(searchCmd)
 }
 
@@ -52,6 +54,7 @@ Using the --expect flag, you can build integrations with other commands. If this
 
 		t = tui.NewTui(searcher(index), true)
 		t.ExpectedKeys = expectedKeys
+		t.InitialQuery = initialQuery
 		result, err = t.Run(func() {
 			asyncErr = make(chan error, 1)
 			go indexAsync(index, t, asyncErr)
