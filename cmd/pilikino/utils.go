@@ -5,6 +5,7 @@ import (
 
 	"github.com/CGamesPlay/pilikino/pkg/pilikino"
 	"github.com/CGamesPlay/pilikino/pkg/search"
+	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search/query"
 )
 
@@ -42,4 +43,12 @@ func parseQuery(queryString string, includeAll bool) (query.Query, error) {
 	}
 	recency := search.NewRecencyQuery("modified", baseQuery)
 	return recency, nil
+}
+
+func performSearch(index *pilikino.Index, query query.Query, numResults int) (*bleve.SearchResult, error) {
+	sr := bleve.NewSearchRequestOptions(query, numResults, 0, false)
+	sr.Fields = []string{"*"}
+	sr.Highlight = bleve.NewHighlight()
+	sr.Highlight.AddField("content")
+	return index.Bleve.Search(sr)
 }

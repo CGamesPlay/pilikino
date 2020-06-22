@@ -19,11 +19,13 @@ Nothing!
 - More vim polish
 - Alfred workflow
 - Improve match highlighting preview window
+- Tune boost values
 
 ### Vim plugin TODO list
 
 - Write documentation and vroom tests
-- Write `pilikino#writing` optional plugin and move link insertion, following there.
+- Split into a basic search (interactive and non interactive) interface and rest
+- Create a non interactive mode for use with backlinks search
 
 ### Querying TODO list
 
@@ -34,6 +36,18 @@ Nothing!
 - date searching for created / modified
 - convenience searches for `has:errors`, `is:orphan`, etc
 - probably just stop using yacc
+
+### Improving highlighting
+
+In order to identify locations of links in documents, the pipeline will look like this:
+
+- Character filter to remove everything except markdown link source at same position in document
+- Whitespace tokenizer
+- Token filter to replace the extracted links with resolved link hrefs.
+
+The result is that `links` now becomes a text field with this analyzer instead of an array. Highlighting uses offsets from `links` but projected onto the `content` field. We can easily extract line numbers of links. This same process will apply to inline tags as well.
+
+To highlight this, we have to copy the `highlighter_simple.go` code, but we can mostly reuse it. We need to change the input value to the fragmenter to receive the original content value instead of the filtered value.
 
 ## Reference
 

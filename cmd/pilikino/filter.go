@@ -7,15 +7,15 @@ import (
 	"strings"
 
 	"github.com/CGamesPlay/pilikino/pkg/pilikino"
-	"github.com/blevesearch/bleve"
 	"github.com/spf13/cobra"
 )
 
 const numResults = 100
 
-var ErrNoResults = errors.New("no results")
+var errNoResults = errors.New("no results")
 
 func init() {
+	filterCmd.Flags().StringVarP(&resultTemplateStr, "format", "f", resultTemplateStr, "format string to use for results")
 	rootCmd.AddCommand(filterCmd)
 }
 
@@ -33,7 +33,7 @@ var filterCmd = &cobra.Command{
 		}
 
 		// These exit codes are similar to grep's.
-		if err == ErrNoResults {
+		if err == errNoResults {
 			// No matches
 			os.Exit(1)
 		} else if err != nil {
@@ -48,16 +48,18 @@ func runFilter(index *pilikino.Index, queryString string) error {
 	if err != nil {
 		return err
 	}
-	sr := bleve.NewSearchRequestOptions(query, numResults, 0, false)
-	sr.Highlight = bleve.NewHighlight()
-	res, err := index.Bleve.Search(sr)
+	res, err := performSearch(index, query, numResults)
 	if err != nil {
 		return err
 	} else if res.Total == 0 {
-		return ErrNoResults
+		return errNoResults
 	}
 	for _, hit := range res.Hits {
-		fmt.Println(hit.ID)
+		res, err := formatResult(hit)
+		if err != nil {
+			return err
+		}
+		fmt.Println(res)
 	}
 	return nil
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/CGamesPlay/pilikino/pkg/pilikino"
 	"github.com/CGamesPlay/pilikino/pkg/tui"
-	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/search"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
@@ -19,6 +18,7 @@ var initialQuery string
 func init() {
 	searchCmd.Flags().StringSliceVar(&searchKeys, "expect", []string{}, "list of keys to accept a result")
 	searchCmd.Flags().StringVar(&initialQuery, "query", "", "query string to prefill")
+	searchCmd.Flags().StringVarP(&resultTemplateStr, "format", "f", resultTemplateStr, "format string to show in list")
 	rootCmd.AddCommand(searchCmd)
 }
 
@@ -30,14 +30,20 @@ var searchCmd = &cobra.Command{
 Using the --expect flag, you can build integrations with other commands. If this option is set, the first line of output for a successful search will be the name of the key that was typed to accept the search. Example key names: f1, ctrl-v, enter, alt-shift-s. Note that enter will always accept the search, but will not be printed unless --expect is specified. You can use --expect=enter to make this explicit.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			index    *pilikino.Index
-			result   *tui.InteractiveResults
-			t        *tui.Tui
-			asyncErr chan error
-			err      error
+			expectedKeys []tui.Key
+			index        *pilikino.Index
+			result       *tui.InteractiveResults
+			t            *tui.Tui
+			asyncErr     chan error
+			err          error
 		)
 
-		expectedKeys := make([]tui.Key, len(searchKeys)+1)
+		err = setupResultTemplate()
+		if err != nil {
+			goto fail
+		}
+
+		expectedKeys = make([]tui.Key, len(searchKeys)+1)
 		for i, name := range searchKeys {
 			var key tui.Key
 			key, err = tui.ParseKey(name)
@@ -102,8 +108,10 @@ type bleveResult struct {
 }
 
 func (hit *bleveResult) Label() string {
-	label := hit.ID
-	label += fmt.Sprintf(":%.4f", hit.Score)
+	label, err := formatResult(&hit.DocumentMatch)
+	if err != nil {
+		panic(err)
+	}
 	return label
 }
 
@@ -127,10 +135,7 @@ func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResu
 			sr := tui.SearchResult{QueryError: err}
 			return sr, nil
 		}
-		sr := bleve.NewSearchRequestOptions(query, numResults, 0, false)
-		sr.Fields = []string{"content"}
-		sr.Highlight = bleve.NewHighlight()
-		bleveRes, err := index.Bleve.Search(sr)
+		bleveRes, err := performSearch(index, query, numResults)
 		if err != nil {
 			return tui.SearchResult{}, err
 		}
