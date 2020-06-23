@@ -217,21 +217,25 @@ function! s:run_terminal(opts) abort
   if !has_nvim_term && !has_vim8_term
     throw 'unsupported vim version'
   end
-  if has('nvim')
-    throw 'nvim not implemented'
-  end
   try
     let [shell, shellslash, shellcmdflag, shellxquote] = s:use_sh()
     let opts = a:opts
-    function! s:exit_cb(job, status) closure
+    function! s:exit_cb(job, status, ...) closure
       if has_key(opts, 'on_exit')
         call opts.on_exit(a:status)
       end
     endfunction
-    let termopts = { 'curwin': 1, 'exit_cb': funcref('s:exit_cb') }
-    let buf = term_start([&shell, &shellcmdflag, a:opts.command], termopts)
-    if !has('patch-8.0.1261') && !has('nvim') && !s:is_win
-      call term_wait(buf, 20)
+    if has('nvim')
+      let termopts = { 'on_exit': funcref('s:exit_cb') }
+      call termopen([&shell, &shellcmdflag, a:opts.command], termopts)
+      let buf = bufnr('')
+      startinsert
+    else
+      let termopts = { 'curwin': 1, 'exit_cb': funcref('s:exit_cb') }
+      let buf = term_start([&shell, &shellcmdflag, a:opts.command], termopts)
+      if !has('patch-8.0.1261') && !has('nvim') && !s:is_win
+        call term_wait(buf, 20)
+      endif
     endif
     setlocal nospell bufhidden=wipe nobuflisted nonumber
     return buf
@@ -340,9 +344,10 @@ function! pilikino#format_link(filename, template) abort
   if exists('Replacer')
     return Replacer(filename)
   end
-  return a:template
-    \ ->substitute("{title}", title, "g")
-    \ ->substitute("{filename}", filename, "g")
+  let result = a:template
+  let result = substitute(result, "{title}", title, "g")
+  let result = substitute(result, "{filename}", filename, "g")
+  return result
 endfunction
 
 " Perform a pilikino search, and insert the found filename into the current

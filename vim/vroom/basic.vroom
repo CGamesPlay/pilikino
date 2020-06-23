@@ -1,0 +1,32 @@
+Basic test suite for core pilikino commands.
+
+  :source $VROOMDIR/setupvroom.vim
+
+Pilikino requires some time to complete a search after receiving it, this macro
+will send the query, wait, then accept.
+
+  @macro (search)
+  > {query} (0.5s)
+  > <CR>
+  @endmacro
+
+Running :Pilikino should open the search interface, then typing a query and
+pressing enter should open that file for editing. In general we need to wait
+for Pilikino to index the directory for the search to work properly.
+
+  :Pilikino
+  @do (search, query='basic')
+  :echomsg expand('%')
+  ~ ./basic.md
+
+
+
+You should be able to cancel a Pilikino execution by pressing <ESC>. The delay
+is required to give vim time to close the interface and switch back to the
+original buffer.
+
+  :messages clear | e test.md
+  :Pilikino
+  > <ESC> (0.1s)
+  :echomsg expand('%')
+  ~ test.md

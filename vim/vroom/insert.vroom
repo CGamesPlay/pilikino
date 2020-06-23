@@ -1,0 +1,37 @@
+Test suite for Pilikino insert-link functionality.
+
+  :source $VROOMDIR/setupvroom.vim
+
+Pilikino requires some time to complete a search after receiving it, this macro
+will send the query, wait, then accept.
+
+  @macro (search)
+  > {query} (0.5s)
+  > <CR>
+  @endmacro
+
+We need to set up an imap to be able to test the plugin. Vroom has a bug where
+it crashes if you actually send <Plug>, so we need to send it in separate
+commands.
+
+  > :imap [[ <
+  > Plug>PilikinoInsertLink<CR>
+
+When in insert mode, we should be able to use the PilikinoInsertLink binding.
+
+  > ilink to <[[
+  @do (search, query='basic')
+
+The link is inserted and we are still in insert mode.
+
+  > ><ESC>
+  link to <basic.md>
+
+
+
+Insertion needs to operate in the middle of a line as well.
+
+  > Olink goes here () in the parens<ESC>F(a[[
+  @do (search, query='basic')
+  > <ESC>
+  link goes here (basic.md) in the parens

@@ -27,3 +27,12 @@ install:
 .PHONY: test
 test: install
 	go test $(PKG)/...
+
+
+.PHONY: docker-vroom
+docker-vroom:
+	docker build bin/linux_amd64 -f vim/vroom/Dockerfile -t vroom
+
+.PHONY: vim-test
+vim-test: bin/linux_amd64/pilikino
+	docker run --rm -it -v `pwd`:/vroom vroom
