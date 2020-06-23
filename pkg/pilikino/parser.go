@@ -48,7 +48,7 @@ func resolveLink(index *Index, from, to string) (string, error) {
 	if toURI.Host != "" {
 		return "", nil
 	}
-	return index.resolveLink(from, to)
+	return index.ResolveLink(from, to)
 }
 
 func extractLinks(index *Index, note *noteData, file []byte) func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -61,8 +61,8 @@ func extractLinks(index *Index, note *noteData, file []byte) func(n ast.Node, en
 			dest := string(link.Destination)
 			resolved, err := resolveLink(index, note.Filename, dest)
 			if err != nil {
-				note.AddParseError(fmt.Sprintf("ambiguous link %#v", dest))
-			} else if resolved != "" {
+				note.AddParseError(fmt.Sprintf("%v: %#v", err, dest))
+			} else {
 				note.AddLink(resolved)
 			}
 		}

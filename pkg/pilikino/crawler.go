@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+// ErrAmbiguousLink indicates that a relative link could have resolved to
+// multiple files.
+var ErrAmbiguousLink = errors.New("ambiguous link")
+// ErrDeadLink indicates that a relative link does not resolve to an existing
+// file.
+var ErrDeadLink = errors.New("dead link")
+
 const progressInterval = 200 * time.Millisecond
 
 // IndexProgress holds data relating to an in-progress scan of the database.
@@ -55,29 +62,58 @@ func (index *Index) Reindex(progressFunc func(IndexProgress)) error {
 }
 
 var globEscaper = strings.NewReplacer(
-	"*", "\\*",
-	"?", "\\?",
-	"[", "\\[",
-	"\\", "\\\\",
+	`*`, `\*`,
+	`?`, `\?`,
+	`[`, `\[`,
+	`\`, `\\`,
 )
 
-// resolveLink will attempt to locate a note located at `to` relative to
-// `from`. This may resolve links that are specified from partial filenames.
-// This method will only return an error if there are multiple ambiguous files
-// that could be referred to. If there are no possible files, it will return an
-// empty string and nil error.
-func (index *Index) resolveLink(from, to string) (string, error) {
+// getRelativePath returns the pathname made relative to the cwd. It will fail
+// if the path points outside of the cwd.
+func getRelativePath(dir string) (string, error) {
+	dir = filepath.Clean(dir)
+	if filepath.IsAbs(dir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		dir, err = filepath.Rel(cwd, dir)
+		if err != nil {
+			return "", err
+		}
+	}
+	if filepath.HasPrefix(dir, filepath.FromSlash("../")) {
+		return "", errors.New("invalid relative link")
+	}
+	return dir, nil
+}
+
+// ResolveLink will attempt to locate a note located at `to` relative to
+// `from`. This may resolve links that are specified from partial filenames. If
+// an error is not returned, the path will always be relative to the cwd and
+// not begin with `..`.
+func (index *Index) ResolveLink(from, to string) (string, error) {
+	// Step 1: convert the link to relative to cwd (or absolute)
 	fromDir := filepath.Dir(from)
+	if !filepath.IsAbs(to) {
+		to = filepath.Join(fromDir, to)
+	}
+	// Step 2: validate directory
 	toDir, toBase := filepath.Split(to)
+	toDir, err := getRelativePath(toDir)
+	if err != nil {
+		return "", err
+	}
+	// Step 3: resolve partial filenames
 	toGlob := fmt.Sprintf("*%v*", globEscaper.Replace(toBase))
-	glob := filepath.Join(".", globEscaper.Replace(fromDir), globEscaper.Replace(toDir), toGlob)
+	glob := filepath.Join(globEscaper.Replace(toDir), toGlob)
 	matches, err := filepath.Glob(glob)
 	if err != nil {
 		panic("bad pattern")
 	} else if len(matches) > 1 {
-		return "", errors.New("ambiguous link")
+		return "", ErrAmbiguousLink
 	} else if len(matches) == 0 {
-		return "", nil
+		return "", ErrDeadLink
 	}
 	return matches[0], nil
 }

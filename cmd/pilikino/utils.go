@@ -9,6 +9,19 @@ import (
 	"github.com/blevesearch/bleve/search/query"
 )
 
+const (
+	// ExitStatusSuccess when the program exits normally.
+	ExitStatusSuccess = 0
+	// ExitStatusNoResults when the program exits after failing to find any
+	// results.
+	ExitStatusNoResults = 1
+	// ExitStatusError when the program exits after encountering an error.
+	ExitStatusError = 2
+	// ExitStatusAborted when the program exits because the user aborted the
+	// search.
+	ExitStatusAborted = 130
+)
+
 func getIndex() (*pilikino.Index, error) {
 	if directory != "" {
 		if err := os.Chdir(directory); err != nil {

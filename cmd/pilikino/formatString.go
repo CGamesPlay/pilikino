@@ -14,13 +14,7 @@ var resultTemplateStr = `{{.id}}`
 var resultTemplate *template.Template
 
 func init() {
-	formatStringCmd.Run = func(cmd *cobra.Command, args []string) {
-		fmt.Println(formatStringCmd.Long)
-	}
 	rootCmd.AddCommand(formatStringCmd)
-}
-
-func printFormatStringHelp() {
 }
 
 var formatStringCmd = &cobra.Command{
@@ -36,6 +30,9 @@ Examples:
 - To print the filename and title: ` + "`{{.id}}: {{.hit.title}}`" + `
 - To print the first match fragment as JSON: ` + "`{{json (index .hit.fragments 0)}}`" + `
 - To print everything as json: ` + "`{{json .}}`",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(cmd.Long)
+	},
 }
 
 func setupResultTemplate() error {

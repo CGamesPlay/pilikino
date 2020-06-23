@@ -35,10 +35,10 @@ var filterCmd = &cobra.Command{
 		// These exit codes are similar to grep's.
 		if err == errNoResults {
 			// No matches
-			os.Exit(1)
+			os.Exit(ExitStatusNoResults)
 		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(2)
+			os.Exit(ExitStatusError)
 		}
 	},
 }

@@ -87,13 +87,13 @@ Using the --expect flag, you can build integrations with other commands. If this
 	fail:
 		// These exit codes are similar to fzf's.
 		if err == tui.ErrSearchAborted {
-			os.Exit(130)
+			os.Exit(ExitStatusAborted)
 		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(2)
+			os.Exit(ExitStatusError)
 		} else if len(result.Results) == 0 {
 			// User selected no match
-			os.Exit(1)
+			os.Exit(ExitStatusNoResults)
 		}
 	},
 }
