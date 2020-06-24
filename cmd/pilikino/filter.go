@@ -10,12 +10,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const numResults = 100
-
 var errNoResults = errors.New("no results")
+var filterMatchAll bool
+var filterLimit int
 
 func init() {
 	filterCmd.Flags().StringVarP(&resultTemplateStr, "format", "f", resultTemplateStr, "format string to use for results")
+	filterCmd.Flags().BoolVar(&filterMatchAll, "match-all", false, "print all results, like interactive search")
+	filterCmd.Flags().IntVarP(&filterLimit, "num", "n", 100, "maximum result count")
 	rootCmd.AddCommand(filterCmd)
 }
 
@@ -44,11 +46,11 @@ var filterCmd = &cobra.Command{
 }
 
 func runFilter(index *pilikino.Index, queryString string) error {
-	query, err := parseQuery(queryString, false)
+	query, err := parseQuery(queryString, filterMatchAll)
 	if err != nil {
 		return err
 	}
-	res, err := performSearch(index, query, numResults)
+	res, err := performSearch(index, query, filterLimit)
 	if err != nil {
 		return err
 	} else if res.Total == 0 {

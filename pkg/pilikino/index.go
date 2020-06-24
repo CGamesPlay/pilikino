@@ -65,7 +65,7 @@ func createIndexMapping() (mapping.IndexMapping, error) {
 	noteMapping := bleve.NewDocumentMapping()
 	noteMapping.AddFieldMappingsAt("filename", simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("title", englishTextFieldMapping)
-	noteMapping.AddFieldMappingsAt("content", englishTextFieldMapping)
+	noteMapping.AddFieldMappingsAt("content", englishTextFieldMapping, simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("tags", simpleFieldMapping)
 	noteMapping.AddFieldMappingsAt("modified", dateFieldMapping)
 	noteMapping.AddFieldMappingsAt("date", dateFieldMapping)

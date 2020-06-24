@@ -14,9 +14,11 @@ Nothing!
 
 - More vim polish
 - Improve match highlighting preview window
-- Tune boost values
 - Orphan search
 - Format migrations
+- Tool to dump parsed representation for debugging
+- Config file, creation of blank files
+- Graph visualization
 
 ### Vim plugin TODO list
 

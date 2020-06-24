@@ -12,6 +12,8 @@ import (
 	"github.com/blevesearch/bleve/search/searcher"
 )
 
+// RecencyQuery wraps another query and rescores it based on the recency of a
+// specific field.
 type RecencyQuery struct {
 	// BoostVal represents the ratio of recency to preexisitng score. The
 	// default, 1.0, assigns equal importance to recency score and match score.
@@ -32,15 +34,18 @@ func NewRecencyQuery(field string, base query.Query) *RecencyQuery {
 	return &RecencyQuery{Field: field, RecentAge: time.Hour * 24 * 7, base: base}
 }
 
+// SetBoost satisfies query.BoostableQuery
 func (q *RecencyQuery) SetBoost(b float64) {
 	boost := query.Boost(b)
 	q.BoostVal = &boost
 }
 
+// Boost satisfies query.BoostableQuery
 func (q *RecencyQuery) Boost() float64 {
 	return q.BoostVal.Value()
 }
 
+// Searcher satisfied query.Query.
 func (q *RecencyQuery) Searcher(i index.IndexReader, m mapping.IndexMapping, options search.SearcherOptions) (search.Searcher, error) {
 	bs, err := q.base.Searcher(i, m, options)
 	if err != nil {

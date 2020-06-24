@@ -70,6 +70,7 @@ Currently supported query syntax:
 - literal queries \`docker run\` will perform an exact search, without stemming. (:bug: exact terms aren't indexed properly so this rarely works)
 - field queries `title:bleve` will search only in not titles. Available fields include "content", "title", "tags", and "links"
 - backlinks queries `links:exact-filename.md` will list all documents that link to the given one
+- hashtags `#cooking` will list documents that have that tag in the YAML front-matter of the document (shortcut for `tags:cooking`)
 
 ### Other
 

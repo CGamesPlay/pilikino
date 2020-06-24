@@ -55,6 +55,7 @@ func parseQuery(queryString string, includeAll bool) (query.Query, error) {
 		baseQuery = query.NewBooleanQuery(nil, []query.Query{parsed, defaultMatch}, nil)
 	}
 	recency := search.NewRecencyQuery("modified", baseQuery)
+	recency.SetBoost(0.1)
 	return recency, nil
 }
 
