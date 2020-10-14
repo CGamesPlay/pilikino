@@ -98,10 +98,9 @@ Using the --expect flag, you can build integrations with other commands. If this
 		// These exit codes are similar to fzf's.
 		if err == tui.ErrSearchAborted {
 			os.Exit(ExitStatusAborted)
-		} else if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(ExitStatusError)
-		} else if len(result.Results) == 0 {
+		}
+		checkError(err)
+		if len(result.Results) == 0 {
 			// User selected no match
 			os.Exit(ExitStatusNoResults)
 		}
@@ -154,7 +153,9 @@ func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResu
 			hits[i] = &bleveResult{*hit}
 		}
 		if allowCreate && queryString != "" {
-			r, err := newCreateResult(&NewFileInfo{Title: queryString})
+			r, err := newCreateResult(&NewFileInfo{
+				Title: strings.TrimSpace(queryString),
+			})
 			if err != nil {
 				return tui.SearchResult{}, err
 			}

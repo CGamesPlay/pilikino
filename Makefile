@@ -3,7 +3,7 @@ SOURCES = $(wildcard *.go) go.mod go.sum
 GOFLAGS = -ldflags '-s -w -extldflags "-static"'
 
 .PHONY: install
-install:
+install: generate
 	go install $(PKG)/...
 
 .PHONY: test

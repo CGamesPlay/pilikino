@@ -24,10 +24,7 @@ var newCmd = &cobra.Command{
 	Long:  `Creates a new file with the provided title. The configuration file specifies how the file is named and its initial content..`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_, err := getIndex()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(ExitStatusError)
-		}
+		checkError(err)
 
 		info := &NewFileInfo{
 			Title: strings.Join(args, " "),
@@ -35,15 +32,9 @@ var newCmd = &cobra.Command{
 			Tags:  newFileTags,
 		}
 		result, err := newCreateResult(info)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(ExitStatusError)
-		}
+		checkError(err)
 		filename, err := result.Create()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(ExitStatusError)
-		}
+		checkError(err)
 		fmt.Printf("%v\n", filename)
 	},
 }
@@ -59,13 +50,11 @@ func newCreateResult(info *NewFileInfo) (*createResult, error) {
 	}
 	filename, err := DefaultConfig.GetFilename(info)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(ExitStatusError)
+		return nil, err
 	}
 	content, err := DefaultConfig.GetTemplate(info)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(ExitStatusError)
+		return nil, err
 	}
 	result := &createResult{filename, content}
 	return result, nil

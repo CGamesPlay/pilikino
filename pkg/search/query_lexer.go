@@ -13,7 +13,7 @@ import (
 //go:generate go run golang.org/x/tools/cmd/goyacc -l -o query_parser.go query_parser.y
 
 // specialChars are never part of a term, unless prefixed by a backslash
-const specialChars = "`:\""
+const specialChars = "`:\"*"
 
 // isTermRune checks if a character can be part of a term at the given index
 func isTermRune(r rune, pos int) bool {

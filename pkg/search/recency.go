@@ -25,13 +25,13 @@ type RecencyQuery struct {
 	// RecentAge is the age at which the score reaches BoostVal / 2. The
 	// default value is 7 days.
 	RecentAge time.Duration
-	base      query.Query
+	Base      query.Query
 }
 
 // NewRecencyQuery takes a base query, but mixes in a score based on how recent
 // the passed field is.
 func NewRecencyQuery(field string, base query.Query) *RecencyQuery {
-	return &RecencyQuery{Field: field, RecentAge: time.Hour * 24 * 7, base: base}
+	return &RecencyQuery{Field: field, RecentAge: time.Hour * 24 * 7, Base: base}
 }
 
 // SetBoost satisfies query.BoostableQuery
@@ -47,7 +47,7 @@ func (q *RecencyQuery) Boost() float64 {
 
 // Searcher satisfied query.Query.
 func (q *RecencyQuery) Searcher(i index.IndexReader, m mapping.IndexMapping, options search.SearcherOptions) (search.Searcher, error) {
-	bs, err := q.base.Searcher(i, m, options)
+	bs, err := q.Base.Searcher(i, m, options)
 	if err != nil {
 		return nil, err
 	}

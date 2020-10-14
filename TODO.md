@@ -8,17 +8,14 @@ This document tracks my own notes and thoughts about the project. Anything in th
 
 ### Current task
 
-Integrate `pilikino new` with:
-
-- Interactive search
-- Alfred
-- Vim
+Nothing!
 
 ### Next steps
 
+- Allow following links in vim
 - Orphan search - identify notes not linked from any others
 - Format migrations
-- Tool to dump parsed representation for debugging
+- Tool to dump parsed representation of document for debugging
 - Graph visualization
 - More vim polish
 - Improve match highlighting preview window

@@ -244,13 +244,13 @@ function! s:run_terminal(opts) abort
   endtry
 endfunction
 
-" Executes Pilikino.
+" Executes Pilikino interactive search.
 "
 " args.callback, required, function to call with the results on success
 " args.cancel, optional, function to call when user aborts search
 " args.args, optional, a list of strings to pass as arguments
 " args.layout, optional, the layout to use for the split
-function! pilikino#exec(args) abort
+function! pilikino#exec_search(args) abort
   let args = a:args
   let split = {}
   if has_key(args, 'layout')
@@ -321,6 +321,13 @@ function! pilikino#search(...) abort
     \ '--directory', opts.directory,
     \ ]
 
+  if has_key(opts, 'query')
+    call extend(opts.args, [ '--query', opts.query ])
+  endif
+  if has_key(opts, 'onlyExisting') && opts.onlyExisting != 0
+    call add(opts.args, '--allow-create=false')
+  endif
+
   function! opts.callback(results) closure
     let Action = opts.actions[a:results[0]]
     if type(Action) == v:t_string
@@ -331,7 +338,7 @@ function! pilikino#search(...) abort
       call Action(filename)
     end
   endfunction
-  call pilikino#exec(opts)
+  call pilikino#exec_search(opts)
 endfunction
 
 function! pilikino#format_link(filename, template) abort
@@ -378,6 +385,7 @@ function! pilikino#insert_result(...)
   call pilikino#search({
     \ 'actions': { 'enter': funcref('s:do_insert') },
     \ 'cancel': funcref('s:do_cancel'),
+    \ 'onlyExisting': 1,
     \ })
 endfunction
 

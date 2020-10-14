@@ -26,10 +26,8 @@ var resolveCmd = &cobra.Command{
 			result, err = index.ResolveLink(resolveFrom, args[0])
 		}
 
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(ExitStatusError)
-		} else if result == "" {
+		checkError(err)
+		if result == "" {
 			fmt.Fprintf(os.Stderr, "%v\n", errNoResults)
 			os.Exit(ExitStatusNoResults)
 		} else {

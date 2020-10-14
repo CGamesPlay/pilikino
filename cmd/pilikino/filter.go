@@ -38,10 +38,8 @@ var filterCmd = &cobra.Command{
 		if err == errNoResults {
 			// No matches
 			os.Exit(ExitStatusNoResults)
-		} else if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(ExitStatusError)
 		}
+		checkError(err)
 	},
 }
 

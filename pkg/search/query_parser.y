@@ -53,6 +53,8 @@ Query
 Match
 	: tokTerm
 	{ $$ = query.NewMatchQuery($1) }
+	| tokTerm '*'
+	{ $$ = query.NewDisjunctionQuery([]query.Query{query.NewMatchQuery($1), query.NewPrefixQuery($1)}) }
 	| '"' Words '"'
 	{ $$ = query.NewMatchPhraseQuery(strings.Join($2, " ")) }
 	| '`' Words '`'

@@ -32,6 +32,7 @@ var yyToknames = [...]string{
 	"'-'",
 	"':'",
 	"'#'",
+	"'*'",
 	"'\"'",
 	"'`'",
 }
@@ -49,59 +50,59 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 31
+const yyLast = 33
 
 var yyAct = [...]int{
 
-	8, 5, 6, 7, 9, 10, 11, 8, 17, 21,
-	23, 9, 10, 11, 10, 11, 24, 23, 15, 20,
-	19, 4, 22, 18, 16, 2, 3, 13, 14, 12,
-	1,
+	8, 5, 6, 7, 9, 8, 10, 11, 22, 9,
+	24, 10, 11, 18, 10, 11, 24, 25, 15, 21,
+	16, 4, 23, 16, 19, 20, 17, 13, 14, 3,
+	2, 1, 12,
 }
 var yyPact = [...]int{
 
-	-6, -1000, -6, -1000, -1000, 1, 1, -1000, 9, 18,
-	17, 17, -1000, -1000, -1000, 3, -1000, 11, -1000, 4,
-	-1000, -1000, -1000, -1000, -1000,
+	-6, -1000, -6, -1000, -1000, -1, -1, -1000, 9, 20,
+	18, 18, -1000, -1000, -1000, 2, -1000, -1000, 10, -1000,
+	4, -1000, 12, -1000, -1000, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 8, 21, 3, 30, 25, 26,
+	0, 13, 21, 3, 31, 30, 29,
 }
 var yyR1 = [...]int{
 
 	0, 4, 5, 5, 6, 6, 6, 2, 2, 2,
-	3, 3, 3, 1, 1,
+	3, 3, 3, 3, 1, 1,
 }
 var yyR2 = [...]int{
 
 	0, 1, 1, 2, 1, 2, 2, 1, 3, 2,
-	1, 3, 3, 1, 2,
+	1, 2, 3, 3, 1, 2,
 }
 var yyChk = [...]int{
 
 	-1000, -4, -5, -6, -2, 7, 8, -3, 6, 10,
-	11, 12, -6, -2, -2, 9, 6, -1, 6, -1,
-	-3, 6, 11, 6, 12,
+	12, 13, -6, -2, -2, 9, 11, 6, -1, 6,
+	-1, -3, 6, 12, 6, 13,
 }
 var yyDef = [...]int{
 
 	0, -2, 1, 2, 4, 0, 0, 7, 10, 0,
-	0, 0, 3, 5, 6, 0, 9, 0, 13, 0,
-	8, 10, 11, 14, 12,
+	0, 0, 3, 5, 6, 0, 11, 9, 0, 14,
+	0, 8, 10, 12, 15, 13,
 }
 var yyTok1 = [...]int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 11, 10, 3, 3, 3, 3,
-	3, 3, 3, 7, 3, 8, 3, 3, 3, 3,
+	3, 3, 3, 3, 12, 10, 3, 3, 3, 3,
+	3, 3, 11, 7, 3, 8, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 9, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 12,
+	3, 3, 3, 3, 3, 3, 13,
 }
 var yyTok2 = [...]int{
 
@@ -492,21 +493,26 @@ yydefault:
 			yyVAL.query = query.NewMatchQuery(yyDollar[1].term)
 		}
 	case 11:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.query = query.NewMatchPhraseQuery(strings.Join(yyDollar[2].termList, " "))
+			yyVAL.query = query.NewDisjunctionQuery([]query.Query{query.NewMatchQuery(yyDollar[1].term), query.NewPrefixQuery(yyDollar[1].term)})
 		}
 	case 12:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.query = query.NewPhraseQuery(yyDollar[2].termList, "_all")
+			yyVAL.query = query.NewMatchPhraseQuery(strings.Join(yyDollar[2].termList, " "))
 		}
 	case 13:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.query = query.NewPhraseQuery(yyDollar[2].termList, "_all")
+		}
+	case 14:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.termList = []string{yyDollar[1].term}
 		}
-	case 14:
+	case 15:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.termList = append(yyDollar[1].termList, yyDollar[2].term)

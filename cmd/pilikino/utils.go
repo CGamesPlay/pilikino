@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/CGamesPlay/pilikino/pkg/pilikino"
 	"github.com/CGamesPlay/pilikino/pkg/search"
 	"github.com/blevesearch/bleve"
@@ -20,6 +23,13 @@ const (
 	ExitStatusAborted = 130
 )
 
+func checkError(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(ExitStatusError)
+	}
+}
+
 func getIndex() (*pilikino.Index, error) {
 	if err := setupDir(); err != nil {
 		return nil, err
@@ -31,9 +41,9 @@ func getIndex() (*pilikino.Index, error) {
 	return index, nil
 }
 
-func parseQuery(queryString string, includeAll bool) (query.Query, error) {
+func parseQuery(queryString string, interactive bool) (query.Query, error) {
 	var defaultMatch query.Query
-	if includeAll {
+	if interactive && len(queryString) == 0 {
 		matchAll := query.NewMatchAllQuery()
 		matchAll.SetBoost(0.1)
 		defaultMatch = matchAll
@@ -44,6 +54,11 @@ func parseQuery(queryString string, includeAll bool) (query.Query, error) {
 	if len(queryString) == 0 {
 		baseQuery = defaultMatch
 	} else {
+		if interactive && queryString[len(queryString)-1] != ' ' {
+			// During an interactive search, we treat the final word as a
+			// prefix match to enable "co" to match "coffee" as the user types.
+			queryString = queryString + "*"
+		}
 		parsed, err := search.ParseQuery(queryString)
 		if err != nil {
 			return nil, err
