@@ -211,7 +211,7 @@ func (tui *Tui) Run(ready func()) (*InteractiveResults, error) {
 
 	is.resultsView = tview.NewList().
 		ShowSecondaryText(false).
-		SetWrapAround(false).
+		SetWrapAround(true).
 		SetMainTextColor(tcell.ColorDefault).
 		SetSelectedTextColor(tcell.Color254).
 		SetSelectedBackgroundColor(tcell.Color236)

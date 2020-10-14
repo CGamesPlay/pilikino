@@ -14,11 +14,13 @@ import (
 
 var searchKeys []string
 var initialQuery string
+var allowCreate bool
 
 func init() {
 	searchCmd.Flags().StringSliceVar(&searchKeys, "expect", []string{}, "list of keys to accept a result")
 	searchCmd.Flags().StringVar(&initialQuery, "query", "", "query string to prefill")
 	searchCmd.Flags().StringVarP(&resultTemplateStr, "format", "f", resultTemplateStr, "format string to show in list")
+	searchCmd.Flags().BoolVar(&allowCreate, "allow-create", true, "show option to create a new file")
 	rootCmd.AddCommand(searchCmd)
 }
 
@@ -81,7 +83,15 @@ Using the --expect flag, you can build integrations with other commands. If this
 			}
 		}
 		for _, hit := range result.Results {
-			fmt.Printf("%v\n", hit.(*bleveResult).ID)
+			if br, ok := hit.(*bleveResult); ok {
+				fmt.Println(br.ID)
+			} else if cr, ok := hit.(*createResult); ok {
+				var filename string
+				if filename, err = cr.Create(); err != nil {
+					goto fail
+				}
+				fmt.Println(filename)
+			}
 		}
 
 	fail:
@@ -142,6 +152,13 @@ func searcher(index *pilikino.Index) func(query string, num int) (tui.SearchResu
 		hits := make([]tui.Document, len(bleveRes.Hits))
 		for i, hit := range bleveRes.Hits {
 			hits[i] = &bleveResult{*hit}
+		}
+		if allowCreate && queryString != "" {
+			r, err := newCreateResult(&NewFileInfo{Title: queryString})
+			if err != nil {
+				return tui.SearchResult{}, err
+			}
+			hits = append(hits, r)
 		}
 		res := tui.SearchResult{
 			Results: hits,

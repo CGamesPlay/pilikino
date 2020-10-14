@@ -8,17 +8,20 @@ This document tracks my own notes and thoughts about the project. Anything in th
 
 ### Current task
 
-Nothing!
+Integrate `pilikino new` with:
+
+- Interactive search
+- Alfred
+- Vim
 
 ### Next steps
 
-- More vim polish
-- Improve match highlighting preview window
-- Orphan search
+- Orphan search - identify notes not linked from any others
 - Format migrations
 - Tool to dump parsed representation for debugging
-- Config file, creation of blank files
 - Graph visualization
+- More vim polish
+- Improve match highlighting preview window
 
 ### Vim plugin TODO list
 
@@ -35,6 +38,7 @@ Nothing!
 - date searching for created / modified
 - convenience searches for `has:errors`, `is:orphan`, etc
 - probably just stop using yacc
+- Synonyms dictionary (e.g. "prod" = "production")
 
 ### Improving highlighting
 

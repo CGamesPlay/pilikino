@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 )
 
@@ -32,17 +34,56 @@ var newCmd = &cobra.Command{
 			Date:  time.Now(),
 			Tags:  newFileTags,
 		}
-		filename, err := DefaultConfig.GetFilename(info)
+		result, err := newCreateResult(info)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(ExitStatusError)
 		}
-		content, err := DefaultConfig.GetTemplate(info)
+		filename, err := result.Create()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(ExitStatusError)
 		}
-		fmt.Printf("Create a new file %#v!\n", filename)
-		fmt.Printf("%v\n", content)
+		fmt.Printf("%v\n", filename)
 	},
+}
+
+type createResult struct {
+	filename string
+	content  string
+}
+
+func newCreateResult(info *NewFileInfo) (*createResult, error) {
+	if info.Date == (time.Time{}) {
+		info.Date = time.Now()
+	}
+	filename, err := DefaultConfig.GetFilename(info)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(ExitStatusError)
+	}
+	content, err := DefaultConfig.GetTemplate(info)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(ExitStatusError)
+	}
+	result := &createResult{filename, content}
+	return result, nil
+}
+
+func (hit *createResult) Label() string {
+	return fmt.Sprintf("Create %#v", hit.filename)
+}
+
+func (hit *createResult) Preview(preview *tview.TextView) {
+	preview.SetScrollable(true).
+		SetText(hit.content).
+		SetWordWrap(true).
+		SetDynamicColors(false).
+		ScrollTo(0, 0)
+}
+
+func (hit *createResult) Create() (string, error) {
+	err := ioutil.WriteFile(hit.filename, []byte(hit.content), 0644)
+	return hit.filename, err
 }
