@@ -27,6 +27,17 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&directory, "directory", "C", "", "change into directory before starting")
 }
 
+func setupDir() error {
+	d := directory
+	if d != "" {
+		directory = ""
+		if err := os.Chdir(d); err != nil {
+			return err
+		}
+	}
+	return DefaultConfig.Load()
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

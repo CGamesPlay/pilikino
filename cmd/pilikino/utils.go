@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"github.com/CGamesPlay/pilikino/pkg/pilikino"
 	"github.com/CGamesPlay/pilikino/pkg/search"
 	"github.com/blevesearch/bleve"
@@ -23,10 +21,8 @@ const (
 )
 
 func getIndex() (*pilikino.Index, error) {
-	if directory != "" {
-		if err := os.Chdir(directory); err != nil {
-			return nil, err
-		}
+	if err := setupDir(); err != nil {
+		return nil, err
 	}
 	index, err := pilikino.NewMemOnlyIndex()
 	if err != nil {
