@@ -13,12 +13,18 @@ Nothing!
 ### Next steps
 
 - Allow following links in vim
+- Tool to dump parsed representation of document for export / debugging
+
+### Milestones
+
+The "next steps" above has everything to get to 1.0. Things for beyond 1.0 are listed here:
+
 - Orphan search - identify notes not linked from any others
-- Format migrations
-- Tool to dump parsed representation of document for debugging
 - Graph visualization
-- More vim polish
 - Improve match highlighting preview window
+- "file" subcommand to copy a file into the directory and name it properly.
+- Format migrations
+- The "new file" shortcut should create a document that matches the search, e.g. apply #tags properly.
 
 ### Vim plugin TODO list
 

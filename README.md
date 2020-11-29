@@ -56,8 +56,9 @@ Link to another note:
 
 Navigate between notes (these are Typora tricks; not the Alfred workflow):
 
-- Command-Click on a link to another note to open it in Typora.
 - Press Command-T to open a new tab before opening a note to have the note opened in that tab instead of a new window.
+- Command-Click on a link to another note to open it in Typora (the Command-T trick doesn't work here, sadly).
+- Typora's menu has Window -> Merge All Windows to convert all open windows to one window with many tabs.
 
 ## Reference
 
@@ -80,3 +81,6 @@ Pilikino will exit with 0 when the requested operation is successful. An exit st
 
 - Flicker? Caused by [rivo/tview#314](https://github.com/rivo/tview/issues/314).
 
+## See also
+
+- [Neuron](https://github.com/srid/neuron) is an unrelated project with a similar goal: plain text markdown files.
