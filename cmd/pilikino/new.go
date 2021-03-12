@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 	"time"
 
@@ -21,7 +20,7 @@ func init() {
 var newCmd = &cobra.Command{
 	Use:   "new TITLE",
 	Short: "Create a new note",
-	Long:  `Creates a new file with the provided title. The configuration file specifies how the file is named and its initial content..`,
+	Long:  `Creates a new file with the provided title. The configuration file specifies how the file is named and its initial content.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_, err := getIndex()
 		checkError(err)
