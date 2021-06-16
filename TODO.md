@@ -12,7 +12,7 @@ Nothing!
 
 ### Next steps
 
-- Allow following links in vim
+- Tool to import an asset into the directory
 - Tool to dump parsed representation of document for export / debugging
 
 ### Milestones
@@ -28,6 +28,7 @@ The "next steps" above has everything to get to 1.0. Things for beyond 1.0 are l
 
 ### Vim plugin TODO list
 
+- Allow following links with `^]`
 - Write documentation and vroom tests
 - Split into a basic search (interactive and non interactive) interface and rest
 - Create a non interactive mode for use with backlinks search
