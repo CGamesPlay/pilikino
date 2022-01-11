@@ -12,7 +12,7 @@ import (
 
 func init() {
 	cmd := &cobra.Command{
-		Use:   "extract DATABASE PATH",
+		Use:   "cat DATABASE PATH",
 		Short: "Extract a single note from the database",
 		Long:  `Print out the Markdown source of a note (or binary data of an attachment).`,
 		Args:  cobra.MinimumNArgs(2),
@@ -32,7 +32,7 @@ func init() {
 			}
 
 			if note, ok := file.(notedb.Note); ok {
-				ast, err := note.ParseAST()
+				node, err := note.ParseAST()
 				if err != nil {
 					errs := multierr.Errors(err)
 					logError("%s: encountered %d errors\n", args[1], len(errs))
@@ -41,7 +41,8 @@ func init() {
 					}
 				}
 				r := renderer.NewRenderer()
-				r.Render(os.Stdout, note.Data(), ast)
+				r.Render(os.Stdout, note.Data(), node)
+				//node.Dump(note.Data(), 0)
 			} else {
 				_, err = io.Copy(os.Stdout, file)
 				if err != nil {

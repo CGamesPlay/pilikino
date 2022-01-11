@@ -10,9 +10,9 @@ import (
 
 func init() {
 	cmd := &cobra.Command{
-		Use:   "stats DATABASE",
-		Short: "Print some statistics about a note database",
-		Long:  `Fully loads all notes in the database, parses them, and produces some statistics.`,
+		Use:   "ls DATABASE",
+		Short: "List the contents of a database",
+		Long:  `Produce a full listing of all of the notes and attachments in the database.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			dbURL, err := notedb.ResolveURL(args[0])
@@ -28,18 +28,7 @@ func init() {
 				if err != nil {
 					return err
 				}
-				stat, err := d.Info()
-				if err != nil {
-					return err
-				}
-				noteStat, ok := stat.(notedb.NoteInfo)
-				if ok {
-					if noteStat.IsNote() {
-						fmt.Printf("%s\n", path)
-					} else {
-						fmt.Printf("%s\n", path)
-					}
-				}
+				fmt.Printf("%s\n", path)
 				return nil
 			})
 			if err != nil {

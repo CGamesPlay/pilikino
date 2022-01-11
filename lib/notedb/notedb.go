@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/CGamesPlay/pilikino/lib/markdown/renderer"
 	fs "github.com/relab/wrfs"
 	"github.com/yuin/goldmark/ast"
 )
@@ -42,6 +43,23 @@ type Note interface {
 	// Return the raw data of the note as a slice. This provides copy-free
 	// access to the underlying data read from the database.
 	Data() []byte
+}
+
+// WriteASTNote extends Note with additional methods to rewrite Markdown during
+// the writing process.
+type WriteASTNote interface {
+	Note
+	WriteAST(ast.Node) error
+}
+
+func WriteAST(n Note, node ast.Node, data []byte) error {
+	if wn, ok := n.(WriteASTNote); ok {
+		return wn.WriteAST(node)
+	} else if wf, ok := n.(fs.WriteFile); ok {
+		r := renderer.NewRenderer()
+		return r.Render(wf, data, node)
+	}
+	return fs.ErrUnsupported
 }
 
 // NoteInfo extends fs.FileInfo with additional methods specific to note

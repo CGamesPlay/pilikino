@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CGamesPlay/pilikino/lib/notedb"
 )
@@ -103,6 +104,7 @@ type jexObject struct {
 	Title    string
 	Data     []byte
 	ParentID string
+	ModTime  time.Time
 }
 
 func newjexObject(rawObject string) (*jexObject, error) {
@@ -148,6 +150,14 @@ func newjexObject(rawObject string) (*jexObject, error) {
 	}
 	ret.Type = typeInt
 	ret.ParentID, _ = props["parent_id"]
+	modTimeStr, ok := props["user_updated_time"]
+	if !ok {
+		return nil, fmt.Errorf("object has no user_updated_time")
+	}
+	ret.ModTime, err = time.Parse("2006-01-02T15:04:05Z07:00", modTimeStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user_updated_time: %w", err)
+	}
 
 	if lineEnd != 0 {
 		ret.Title = rawObject[0:strings.IndexByte(rawObject, '\n')]

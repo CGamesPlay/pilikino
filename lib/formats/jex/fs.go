@@ -16,7 +16,6 @@ import (
 )
 
 var resourcesFolder = "_resources"
-var timeNotImplemented time.Time
 
 var escapePathReplacer = strings.NewReplacer(
 	"<", "(",
@@ -213,11 +212,15 @@ var _ fs.ReadDirFile = (*jfsHandle)(nil)
 var _ notedb.Note = (*jfsHandle)(nil)
 
 func (j *jfsHandle) Stat() (fs.FileInfo, error) {
+	var modTime time.Time
+	if j.object != nil {
+		modTime = j.object.ModTime
+	}
 	return &jfsNoteInfo{
 		j.name,
 		0,
 		fs.ModeDir | 0555,
-		timeNotImplemented,
+		modTime,
 		j.object != nil && j.object.Type == TypeNote,
 	}, nil
 }
@@ -260,14 +263,16 @@ func (j *jfsHandle) ReadDir(n int) ([]fs.DirEntry, error) {
 			mode = 0444
 		}
 		size := 0
+		var modTime time.Time
 		if item.object != nil {
 			size = len(item.object.Data)
+			modTime = item.object.ModTime
 		}
 		ret[i] = &jfsNoteInfo{
 			item.name,
 			int64(size),
 			mode,
-			timeNotImplemented,
+			modTime,
 			item.object != nil && item.object.Type == TypeNote,
 		}
 	}
