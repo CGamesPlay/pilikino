@@ -1,12 +1,18 @@
 package jex
 
 import (
+	"fmt"
 	"io"
+	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/CGamesPlay/pilikino/lib/markdown/parser"
 	"github.com/CGamesPlay/pilikino/lib/notedb"
 	fs "github.com/relab/wrfs"
+	"github.com/yuin/goldmark/ast"
+	"go.uber.org/multierr"
 )
 
 var resourcesFolder = "_resources"
@@ -57,13 +63,23 @@ func deduplicateNames(items []*jfsEntry, usedNames map[string]int) {
 	}
 }
 
+func registerPaths(items []*jfsEntry, parentPath string, lookup map[string]string) {
+	for _, entry := range items {
+		if entry.object != nil {
+			lookup[entry.object.ID] = parentPath + "/" + entry.name
+		}
+	}
+}
+
 type JoplinFS struct {
-	root *jfsEntry
+	root       *jfsEntry
+	pathLookup map[string]string
 }
 
 func newJoplinFS(jex *JEX) (*JoplinFS, error) {
 	ret := &JoplinFS{
 		&jfsEntry{nil, "", []*jfsEntry{}},
+		map[string]string{},
 	}
 	itemsByParent := map[string][]*jexObject{}
 	for _, child := range jex.objects {
@@ -80,8 +96,10 @@ func newJoplinFS(jex *JEX) (*JoplinFS, error) {
 
 		// Populate all items, names are not finalized.
 		var parentID string
+		var parentPath string
 		if parent.object != nil {
 			parentID = parent.object.ID
+			parentPath = ret.pathLookup[parentID]
 		}
 		items, _ := itemsByParent[parentID]
 		usedNames := map[string]int{}
@@ -135,9 +153,11 @@ func newJoplinFS(jex *JEX) (*JoplinFS, error) {
 				markName(entry.name, resourceNames)
 			}
 			deduplicateNames(resources.items, resourceNames)
+			registerPaths(resources.items, parentPath+"/"+resourcesFolder, ret.pathLookup)
 		}
 
 		deduplicateNames(parent.items, usedNames)
+		registerPaths(parent.items, parentPath, ret.pathLookup)
 	}
 
 	return ret, nil
@@ -156,7 +176,7 @@ func (j *JoplinFS) Open(path string) (fs.File, error) {
 	if err != nil {
 		return nil, &fs.PathError{Op: "open", Path: path, Err: err}
 	}
-	return &jfsHandle{entry, 0}, nil
+	return &jfsHandle{entry, j, 0}, nil
 }
 
 type jfsEntry struct {
@@ -185,13 +205,15 @@ func (j *jfsEntry) getEntry(components []string) (*jfsEntry, error) {
 
 type jfsHandle struct {
 	*jfsEntry
+	fs     *JoplinFS
 	cursor int
 }
 
 var _ fs.ReadDirFile = (*jfsHandle)(nil)
+var _ notedb.Note = (*jfsHandle)(nil)
 
 func (j *jfsHandle) Stat() (fs.FileInfo, error) {
-	return &jfsFileInfo{
+	return &jfsNoteInfo{
 		j.name,
 		0,
 		fs.ModeDir | 0555,
@@ -241,7 +263,7 @@ func (j *jfsHandle) ReadDir(n int) ([]fs.DirEntry, error) {
 		if item.object != nil {
 			size = len(item.object.Data)
 		}
-		ret[i] = &jfsFileInfo{
+		ret[i] = &jfsNoteInfo{
 			item.name,
 			int64(size),
 			mode,
@@ -252,7 +274,71 @@ func (j *jfsHandle) ReadDir(n int) ([]fs.DirEntry, error) {
 	return ret, nil
 }
 
-type jfsFileInfo struct {
+func (j *jfsHandle) IsNote() bool {
+	return j.object != nil && j.object.Type == TypeNote
+}
+
+func (j *jfsHandle) ParseAST() (ast.Node, error) {
+	if j.object == nil || j.object.Type != TypeNote {
+		return nil, fs.ErrInvalid
+	}
+	base, ok := j.fs.pathLookup[j.object.ID]
+	if !ok {
+		return nil, fmt.Errorf("cannot find own ID in path lookup")
+	}
+	base, _ = filepath.Split(base)
+	doc, err := parser.Parse(j.object.Data)
+
+	replaceLink := func(id string, orig []byte) []byte {
+		found, ok := j.fs.pathLookup[id]
+		if !ok {
+			err = multierr.Append(err, fmt.Errorf("dead link: %s", orig))
+			return orig
+		}
+
+		relative, err := filepath.Rel(base, found)
+		if err != nil {
+			// Should never happen, since all paths are absolute
+			panic(err)
+		}
+		return []byte(relative)
+	}
+
+	linkResolver := func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if link, ok := n.(*ast.Link); ok && entering {
+			dest := string(link.Destination)
+			if strings.HasPrefix(dest, ":/") {
+				link.Destination = replaceLink(dest[2:], link.Destination)
+			} else if u, err := url.Parse(dest); err == nil {
+				if u.Scheme == "joplin" && u.Host == "x-callback-url" && u.Path == "/openNote" {
+					if target, ok := u.Query()["id"]; ok {
+						link.Destination = replaceLink(target[0], link.Destination)
+					}
+				}
+			}
+		} else if img, ok := n.(*ast.Image); ok && entering {
+			dest := string(img.Destination)
+			if strings.HasPrefix(dest, ":/") {
+				img.Destination = replaceLink(dest[2:], img.Destination)
+			}
+		}
+		return ast.WalkContinue, nil
+	}
+
+	if walkErr := ast.Walk(doc, linkResolver); walkErr != nil {
+		err = multierr.Append(err, walkErr)
+	}
+	return doc, err
+}
+
+func (j *jfsHandle) Data() []byte {
+	if j.object == nil {
+		return nil
+	}
+	return j.object.Data
+}
+
+type jfsNoteInfo struct {
 	name    string
 	size    int64
 	mode    fs.FileMode
@@ -260,14 +346,14 @@ type jfsFileInfo struct {
 	isNote  bool
 }
 
-var _ notedb.FileInfo = (*jfsFileInfo)(nil)
+var _ notedb.NoteInfo = (*jfsNoteInfo)(nil)
 
-func (i *jfsFileInfo) Name() string               { return i.name }
-func (i *jfsFileInfo) Size() int64                { return i.size }
-func (i *jfsFileInfo) Mode() fs.FileMode          { return i.mode }
-func (i *jfsFileInfo) ModTime() time.Time         { return i.modTime }
-func (i *jfsFileInfo) IsDir() bool                { return i.mode&fs.ModeDir != 0 }
-func (i *jfsFileInfo) Sys() interface{}           { return nil }
-func (i *jfsFileInfo) Type() fs.FileMode          { return i.mode.Type() }
-func (i *jfsFileInfo) Info() (fs.FileInfo, error) { return i, nil }
-func (i *jfsFileInfo) IsNote() bool               { return i.isNote }
+func (i *jfsNoteInfo) Name() string               { return i.name }
+func (i *jfsNoteInfo) Size() int64                { return i.size }
+func (i *jfsNoteInfo) Mode() fs.FileMode          { return i.mode }
+func (i *jfsNoteInfo) ModTime() time.Time         { return i.modTime }
+func (i *jfsNoteInfo) IsDir() bool                { return i.mode&fs.ModeDir != 0 }
+func (i *jfsNoteInfo) Sys() interface{}           { return nil }
+func (i *jfsNoteInfo) Type() fs.FileMode          { return i.mode.Type() }
+func (i *jfsNoteInfo) Info() (fs.FileInfo, error) { return i, nil }
+func (i *jfsNoteInfo) IsNote() bool               { return i.isNote }

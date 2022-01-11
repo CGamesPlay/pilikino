@@ -4,8 +4,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/CGamesPlay/pilikino/lib/markdown/renderer"
 	"github.com/CGamesPlay/pilikino/lib/notedb"
 	"github.com/spf13/cobra"
+	"go.uber.org/multierr"
 )
 
 func init() {
@@ -29,9 +31,22 @@ func init() {
 				exitError(1, "%s\n", err)
 			}
 
-			_, err = io.Copy(os.Stdout, file)
-			if err != nil {
-				exitError(1, "%s\n", err)
+			if note, ok := file.(notedb.Note); ok {
+				ast, err := note.ParseAST()
+				if err != nil {
+					errs := multierr.Errors(err)
+					logError("%s: encountered %d errors\n", args[1], len(errs))
+					for _, err := range errs {
+						logError("%s\n", err)
+					}
+				}
+				r := renderer.NewRenderer()
+				r.Render(os.Stdout, note.Data(), ast)
+			} else {
+				_, err = io.Copy(os.Stdout, file)
+				if err != nil {
+					exitError(1, "%s\n", err)
+				}
 			}
 		},
 	}

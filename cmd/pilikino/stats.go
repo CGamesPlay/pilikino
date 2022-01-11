@@ -32,7 +32,7 @@ func init() {
 				if err != nil {
 					return err
 				}
-				noteStat, ok := stat.(notedb.FileInfo)
+				noteStat, ok := stat.(notedb.NoteInfo)
 				if ok {
 					if noteStat.IsNote() {
 						fmt.Printf("%s\n", path)

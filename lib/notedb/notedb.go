@@ -6,15 +6,14 @@ import (
 	"strings"
 
 	fs "github.com/relab/wrfs"
+	"github.com/yuin/goldmark/ast"
 )
 
 // Database provides methods to access a database of notes. Implementations are
 // required to be goroutine-safe. The canonical format of a note database is a
 // directory structure, however all fs.Files must satisfy the notedb.File
 // interface, and all fs.FileInfos must satisfy the notedb.FileInfo interface.
-type Database interface {
-	fs.FS
-}
+type Database = fs.FS
 
 // OpenDatabase loads the database at the given URL using the appropriate
 // format. The format is determined by looking at the scheme of the provided
@@ -32,15 +31,22 @@ func OpenDatabase(dbURL *url.URL) (Database, error) {
 	return format.Open(dbURL)
 }
 
-// File extends fs.File with additional methods specific to note databases.
-type File interface {
+// Note extends fs.File with additional methods specific to note databases.
+type Note interface {
 	fs.File
-	ExtraMethod()
+	IsNote() bool
+	// Parses the Note data into an ast.Node and returns it along with any
+	// errors that occurred. Note that an AST is always returned if possible,
+	// and any errors returned in this case are non-fatal.
+	ParseAST() (ast.Node, error)
+	// Return the raw data of the note as a slice. This provides copy-free
+	// access to the underlying data read from the database.
+	Data() []byte
 }
 
-// FileInfo extends fs.FileInfo with additional methods specific to note
+// NoteInfo extends fs.FileInfo with additional methods specific to note
 // databases.
-type FileInfo interface {
+type NoteInfo interface {
 	fs.FileInfo
 	IsNote() bool
 }

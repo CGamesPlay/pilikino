@@ -68,7 +68,7 @@ type fileInfo struct {
 	fs.FileInfo
 }
 
-var _ notedb.FileInfo = (*fileInfo)(nil)
+var _ notedb.NoteInfo = (*fileInfo)(nil)
 
 func (i *fileInfo) Type() fs.FileMode          { return i.Mode().Type() }
 func (i *fileInfo) Info() (fs.FileInfo, error) { return i, nil }
