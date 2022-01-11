@@ -1,9 +1,11 @@
 package jex
 
 import (
-	"io/fs"
 	"strings"
 	"time"
+
+	"github.com/CGamesPlay/pilikino/lib/notedb"
+	fs "github.com/relab/wrfs"
 )
 
 var resourcesFolder = "_resources"
@@ -170,11 +172,12 @@ func (j *jfsEntry) Stat() (fs.FileInfo, error) {
 		0,
 		fs.ModeDir | 0555,
 		timeNotImplemented,
+		j.object != nil && j.object.Type == TypeNote,
 	}, nil
 }
 
 func (j *jfsEntry) Read(ret []byte) (int, error) {
-	return 0, &fs.PathError{Op: "read", Path: "/", Err: fs.ErrInvalid}
+	return 0, &fs.PathError{Op: "read", Path: j.name, Err: fs.ErrInvalid}
 }
 
 func (j *jfsEntry) Close() error {
@@ -225,6 +228,7 @@ func (j *jfsEntry) ReadDir(n int) ([]fs.DirEntry, error) {
 			int64(size),
 			mode,
 			timeNotImplemented,
+			item.object != nil && item.object.Type == TypeNote,
 		}
 	}
 	return ret, nil
@@ -235,7 +239,10 @@ type jfsFileInfo struct {
 	size    int64
 	mode    fs.FileMode
 	modTime time.Time
+	isNote  bool
 }
+
+var _ notedb.FileInfo = (*jfsFileInfo)(nil)
 
 func (i *jfsFileInfo) Name() string               { return i.name }
 func (i *jfsFileInfo) Size() int64                { return i.size }
@@ -245,3 +252,4 @@ func (i *jfsFileInfo) IsDir() bool                { return i.mode&fs.ModeDir != 
 func (i *jfsFileInfo) Sys() interface{}           { return nil }
 func (i *jfsFileInfo) Type() fs.FileMode          { return i.mode.Type() }
 func (i *jfsFileInfo) Info() (fs.FileInfo, error) { return i, nil }
+func (i *jfsFileInfo) IsNote() bool               { return i.isNote }

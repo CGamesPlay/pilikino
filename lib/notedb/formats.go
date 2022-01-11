@@ -2,6 +2,7 @@ package notedb
 
 import (
 	"net/url"
+	"os"
 	"path/filepath"
 )
 
@@ -10,7 +11,7 @@ import (
 type DetectResult int
 
 const (
-	DetectResultNegative = DetectResult(iota - 1)
+	DetectResultNegative = DetectResult(iota)
 	DetectResultUnknown
 	DetectResultPositive
 )
@@ -54,11 +55,14 @@ func ResolveURL(path string) (*url.URL, error) {
 		return nil, err
 	}
 	if dbURL.Scheme == "" {
-		if path[0] != '/' {
-			path, err = filepath.Abs(path)
-			if err != nil {
-				return nil, err
-			}
+		_, err := os.Stat(path)
+		if err != nil {
+			return nil, err
+		}
+
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return nil, err
 		}
 		dbURL = &url.URL{Path: path}
 

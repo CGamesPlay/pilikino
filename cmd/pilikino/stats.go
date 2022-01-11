@@ -31,7 +31,16 @@ func init() {
 				if err != nil {
 					return err
 				}
-				fmt.Printf("%s\n", path)
+				stat, err := d.Info()
+				if err != nil {
+					return err
+				}
+				noteStat, ok := stat.(notedb.FileInfo)
+				if ok {
+					if noteStat.IsNote() {
+						fmt.Printf("%s\n", path)
+					}
+				}
 				return nil
 			})
 			if err != nil {

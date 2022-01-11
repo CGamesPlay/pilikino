@@ -2,16 +2,19 @@ package notedb
 
 import (
 	"fmt"
-	"io/fs"
 	"net/url"
 	"strings"
+
+	fs "github.com/relab/wrfs"
 )
 
 // Database provides methods to access a database of notes. Implementations are
 // required to be goroutine-safe. The canonical format of a note database is a
 // directory structure, however all fs.Files must satisfy the notedb.File
 // interface, and all fs.FileInfos must satisfy the notedb.FileInfo interface.
-type Database fs.FS
+type Database interface {
+	fs.FS
+}
 
 // OpenDatabase loads the database at the given URL using the appropriate
 // format. The format is determined by looking at the scheme of the provided
@@ -29,14 +32,15 @@ func OpenDatabase(dbURL *url.URL) (Database, error) {
 	return format.Open(dbURL)
 }
 
-// File provides raw access to database contents, but also provides a
-// high-level methods specific to notes.
+// File extends fs.File with additional methods specific to note databases.
 type File interface {
 	fs.File
 	ExtraMethod()
 }
 
+// FileInfo extends fs.FileInfo with additional methods specific to note
+// databases.
 type FileInfo interface {
 	fs.FileInfo
-	ExtraMethod()
+	IsNote() bool
 }

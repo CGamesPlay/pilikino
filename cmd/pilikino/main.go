@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	_ "github.com/CGamesPlay/pilikino/lib/formats/file"
 	_ "github.com/CGamesPlay/pilikino/lib/formats/jex"
 )
 
