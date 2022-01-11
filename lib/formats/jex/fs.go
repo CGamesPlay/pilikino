@@ -1,6 +1,7 @@
 package jex
 
 import (
+	"io"
 	"strings"
 	"time"
 
@@ -151,11 +152,11 @@ func (j *JoplinFS) Open(path string) (fs.File, error) {
 	if components[0] == "." {
 		components = components[1:]
 	}
-	file, err := j.root.open(components)
+	entry, err := j.root.getEntry(components)
 	if err != nil {
 		return nil, &fs.PathError{Op: "open", Path: path, Err: err}
 	}
-	return file, nil
+	return &jfsHandle{entry, 0}, nil
 }
 
 type jfsEntry struct {
@@ -164,27 +165,7 @@ type jfsEntry struct {
 	items  []*jfsEntry
 }
 
-var _ fs.ReadDirFile = (*jfsEntry)(nil)
-
-func (j *jfsEntry) Stat() (fs.FileInfo, error) {
-	return &jfsFileInfo{
-		j.name,
-		0,
-		fs.ModeDir | 0555,
-		timeNotImplemented,
-		j.object != nil && j.object.Type == TypeNote,
-	}, nil
-}
-
-func (j *jfsEntry) Read(ret []byte) (int, error) {
-	return 0, &fs.PathError{Op: "read", Path: j.name, Err: fs.ErrInvalid}
-}
-
-func (j *jfsEntry) Close() error {
-	return nil
-}
-
-func (j *jfsEntry) open(components []string) (*jfsEntry, error) {
+func (j *jfsEntry) getEntry(components []string) (*jfsEntry, error) {
 	if len(components) == 0 {
 		return j, nil
 	}
@@ -195,14 +176,51 @@ func (j *jfsEntry) open(components []string) (*jfsEntry, error) {
 
 	for _, item := range j.items {
 		if item.name == components[0] {
-			return item.open(components[1:])
+			return item.getEntry(components[1:])
 		}
 	}
 
 	return nil, fs.ErrNotExist
 }
 
-func (j *jfsEntry) ReadDir(n int) ([]fs.DirEntry, error) {
+type jfsHandle struct {
+	*jfsEntry
+	cursor int
+}
+
+var _ fs.ReadDirFile = (*jfsHandle)(nil)
+
+func (j *jfsHandle) Stat() (fs.FileInfo, error) {
+	return &jfsFileInfo{
+		j.name,
+		0,
+		fs.ModeDir | 0555,
+		timeNotImplemented,
+		j.object != nil && j.object.Type == TypeNote,
+	}, nil
+}
+
+func (j *jfsHandle) Read(ret []byte) (count int, err error) {
+	if j.object == nil || j.object.Data == nil {
+		return 0, &fs.PathError{Op: "read", Path: j.name, Err: fs.ErrInvalid}
+	}
+	if j.cursor == len(j.object.Data) {
+		return 0, io.EOF
+	}
+	count = len(ret)
+	if count+j.cursor >= len(j.object.Data) {
+		count = len(j.object.Data) - j.cursor
+	}
+	copy(ret[0:count], j.object.Data[j.cursor:j.cursor+count])
+	j.cursor += count
+	return
+}
+
+func (j *jfsHandle) Close() error {
+	return nil
+}
+
+func (j *jfsHandle) ReadDir(n int) ([]fs.DirEntry, error) {
 	if n != -1 {
 		panic("partial directory reads are not supported")
 	}

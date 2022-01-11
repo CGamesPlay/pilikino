@@ -61,7 +61,12 @@ func newJEX(file io.Reader) (*JEX, error) {
 			return nil, fmt.Errorf("while reading %s: %w", header.Name, err)
 		}
 		if strings.HasPrefix(header.Name, "resources/") {
-			resourceData[header.Name[len("resources/")+1:]] = data
+			id := header.Name[len("resources/"):]
+			ext := strings.Index(id, ".")
+			if ext != -1 {
+				id = id[0:ext]
+			}
+			resourceData[id] = data
 		} else if strings.HasSuffix(header.Name, ".md") {
 			objectData[header.Name[0:len(header.Name)-len(".md")]] = data
 		} else {
@@ -78,9 +83,13 @@ func newJEX(file io.Reader) (*JEX, error) {
 		}
 		if object.Type == TypeResource {
 			if object.Data != nil {
-				return nil, fmt.Errorf("while loading %s: resource has data", id)
+				return nil, fmt.Errorf("while loading %s: resource object has data", id)
 			}
-			object.Data = resourceData[id]
+			data, ok := resourceData[id]
+			if !ok {
+				return nil, fmt.Errorf("while loading %s: resource data missing", id)
+			}
+			object.Data = data
 		}
 		ret.objects = append(ret.objects, object)
 	}

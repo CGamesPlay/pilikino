@@ -22,3 +22,12 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+func logError(format string, a ...interface{}) (int, error) {
+	return fmt.Fprintf(os.Stderr, format, a...)
+}
+
+func exitError(exitCode int, format string, a ...interface{}) {
+	logError(format, a...)
+	os.Exit(exitCode)
+}
